@@ -77,6 +77,18 @@
             return <StudentDashboard user={user} />;
         }
 
+        // --- دالة تحويل الصورة المرفوعة من الجهاز إلى Base64 ---
+        const handleImageUpload = (e, callback) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    callback(reader.result);
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+
         // --- تسجيل الدخول ---
         function Login() {
             const [username, setUsername] = useState("");
@@ -165,7 +177,7 @@
             const [desc, setDesc] = useState("");
             const [imageUrl, setImageUrl] = useState("");
 
-            // نموذج إضافة إعلان / عرض تسويقي
+            // نموذج إضافة عرض أو إعلان تسويقي
             const [promoTitle, setPromoTitle] = useState("");
             const [promoType, setPromoType] = useState("image"); // image, video, text
             const [promoUrl, setPromoUrl] = useState("");
@@ -221,7 +233,7 @@
                 await addDoc(collection(window.db, "promos"), {
                     title: promoTitle,
                     type: promoType,
-                    url: promoType !== 'text' ? promoUrl : '',
+                    url: promoType === 'image' ? promoUrl : promoType === 'video' ? promoUrl : '',
                     text: promoType === 'text' ? promoText : '',
                     createdAt: new Date().toISOString()
                 });
@@ -280,30 +292,41 @@
                                     <div>
                                         <label className="block text-xs font-bold mb-1">نوع المحتوى</label>
                                         <select value={promoType} onChange={e => setPromoType(e.target.value)} className="w-full px-3 py-2 border rounded outline-none text-sm">
-                                            <option value="image">صورة إعلان 🖼️</option>
-                                            <option value="video">فيديو تسويقي 📺</option>
+                                            <option value="image">صورة إعلان من الاستديو 🖼️</option>
+                                            <option value="video">فيديو تسويقي (يوتيوب) 📺</option>
                                             <option value="text">إعلان / عرض نصي 📝</option>
                                         </select>
                                     </div>
-                                    {promoType === 'text' ? (
-                                        <textarea placeholder="اكتب نص الإعلان أو العرض التفصيلي هنا..." required value={promoText} onChange={e => setPromoText(e.target.value)} className="w-full px-3 py-2 border rounded outline-none text-sm h-24"></textarea>
+
+                                    {promoType === 'image' ? (
+                                        <div>
+                                            <label className="block text-xs font-bold mb-1">اختر صورة الإعلان من الجهاز:</label>
+                                            <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, setPromoUrl)} className="w-full text-xs border p-2 rounded bg-slate-50" />
+                                            {promoUrl && <img src={promoUrl} className="w-full h-28 object-cover mt-2 rounded border" />}
+                                        </div>
+                                    ) : promoType === 'video' ? (
+                                        <input type="url" placeholder="رابط الفيديو (يوتيوب)" required value={promoUrl} onChange={e => setPromoUrl(e.target.value)} className="w-full px-3 py-2 border rounded outline-none text-sm" dir="ltr" />
                                     ) : (
-                                        <input type="url" placeholder={promoType === 'image' ? 'رابط الصورة' : 'رابط الفيديو (يوتيوب)'} required value={promoUrl} onChange={e => setPromoUrl(e.target.value)} className="w-full px-3 py-2 border rounded outline-none text-sm" dir="ltr" />
+                                        <textarea placeholder="اكتب نص الإعلان أو العرض هنا..." required value={promoText} onChange={e => setPromoText(e.target.value)} className="w-full px-3 py-2 border rounded outline-none text-sm h-24"></textarea>
                                     )}
+
                                     <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded font-bold text-sm">نشر في الصفحة الرئيسية</button>
                                 </form>
                             </div>
                             <div className="lg:col-span-2 space-y-4">
                                 <h3 className="text-xl font-bold mb-2">العروض والإعلانات الحالية ({promos.length})</h3>
                                 {promos.map(p => (
-                                    <div key={p.id} className="bg-white p-4 rounded-lg shadow flex justify-between items-start border-r-4 border-blue-500">
-                                        <div>
-                                            <h4 className="font-bold text-blue-900">{p.title} ({p.type === 'image' ? '🖼️ صورة' : p.type === 'video' ? '📺 فيديو' : '📝 نص'})</h4>
-                                            {p.type === 'text' ? (
-                                                <p className="text-gray-600 text-sm mt-1 bg-slate-50 p-2 rounded max-w-md">{p.text}</p>
-                                            ) : (
-                                                <a href={p.url} target="_blank" className="text-xs text-blue-500 underline truncate block max-w-md">{p.url}</a>
-                                            )}
+                                    <div key={p.id} className="bg-white p-4 rounded-lg shadow flex justify-between items-start border-r-4 border-blue-500 gap-4">
+                                        <div className="flex gap-4 items-center flex-1">
+                                            {p.type === 'image' && p.url && <img src={p.url} className="w-20 h-16 object-cover rounded" />}
+                                            <div>
+                                                <h4 className="font-bold text-blue-900">{p.title} ({p.type === 'image' ? '🖼️ صورة' : p.type === 'video' ? '📺 فيديو' : '📝 نص'})</h4>
+                                                {p.type === 'text' ? (
+                                                    <p className="text-gray-600 text-sm mt-1 bg-slate-50 p-2 rounded">{p.text}</p>
+                                                ) : p.type === 'image' ? null : (
+                                                    <a href={p.url} target="_blank" className="text-xs text-blue-500 underline truncate block max-w-md">{p.url}</a>
+                                                )}
+                                            </div>
                                         </div>
                                         <button onClick={() => handleDeletePromo(p.id)} className="bg-red-50 text-red-600 px-3 py-1 rounded font-bold text-sm">حذف</button>
                                     </div>
@@ -349,7 +372,13 @@
                                         <input type="text" placeholder="سعر الدورة *" required value={price} onChange={e => setPrice(e.target.value)} className="w-full px-3 py-2 border rounded outline-none" />
                                         <input type="text" placeholder="الفئة المستهدفة *" required value={targetAudience} onChange={e => setTargetAudience(e.target.value)} className="w-full px-3 py-2 border rounded outline-none" />
                                         <textarea placeholder="وصف الدورة" value={desc} onChange={e => setDesc(e.target.value)} className="w-full px-3 py-2 border rounded outline-none h-20"></textarea>
-                                        <input type="url" placeholder="رابط صورة الغلاف" value={imageUrl} onChange={e => setImageUrl(e.target.value)} className="w-full px-3 py-2 border rounded outline-none text-left" dir="ltr" />
+                                        
+                                        <div>
+                                            <label className="block text-xs font-bold mb-1">صورة غلاف الدورة من الاستديو:</label>
+                                            <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, setImageUrl)} className="w-full text-xs border p-2 rounded bg-slate-50" />
+                                            {imageUrl && <img src={imageUrl} className="w-full h-24 object-cover mt-2 rounded border" />}
+                                        </div>
+
                                         <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700">نشر الدورة</button>
                                     </form>
                                 </div>
@@ -896,7 +925,7 @@
                                             ))}
                                         </div>
                                         <form onSubmit={handleAddComment} className="flex gap-2">
-                                            <input type="text" value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="اكتب تعليقك..." className="flex-1 px-3 py-2 border rounded outline-none text-sm" />
+                                            <input type="text" value={newComment} onChange={e => setNewComment(e.target.value)} className="flex-1 px-3 py-2 border rounded outline-none text-sm" placeholder="اكتب تعليقك..." />
                                             <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded font-bold text-sm">إرسال</button>
                                         </form>
                                     </div>
