@@ -154,6 +154,7 @@
             const [students, setStudents] = useState([]);
             const [promos, setPromos] = useState([]);
             const [selectedCourseForLectures, setSelectedCourseForLectures] = useState(null);
+            const [viewingStudentModal, setViewingStudentModal] = useState(null); // نافذة عرض ملف الطالب المقدم للطلب
             
             // نماذج إضافة دورة
             const [title, setTitle] = useState("");
@@ -166,7 +167,7 @@
 
             // نموذج إضافة إعلان تسويقي
             const [promoTitle, setPromoTitle] = useState("");
-            const [promoType, setPromoType] = useState("image"); // image أو video
+            const [promoType, setPromoType] = useState("image");
             const [promoUrl, setPromoUrl] = useState("");
 
             useEffect(() => {
@@ -238,6 +239,15 @@
                 });
             };
 
+            const handleOpenStudentProfile = async (studentId) => {
+                const docSnap = await getDoc(doc(window.db, "users", studentId));
+                if (docSnap.exists()) {
+                    setViewingStudentModal(docSnap.data());
+                } else {
+                    alert("لم يتم العثور على ملف الطالب.");
+                }
+            };
+
             return (
                 <div className="p-4 md:p-8 max-w-7xl mx-auto">
                     <div className="flex flex-col sm:flex-row justify-between items-center border-b pb-4 mb-6 gap-4">
@@ -250,7 +260,7 @@
                         </div>
                         <div className="flex flex-wrap gap-2">
                             <button onClick={() => { setActiveSubTab("courses"); setSelectedCourseForLectures(null); }} className={`px-4 py-2 rounded font-bold text-sm ${activeSubTab === 'courses' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>إدارة الدورات</button>
-                            <button onClick={() => setActiveSubTab("promos")} className={`px-4 py-2 rounded font-bold text-sm ${activeSubTab === 'promos' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>الإعلانات والفيديوهات التسويقية 📢</button>
+                            <button onClick={() => setActiveSubTab("promos")} className={`px-4 py-2 rounded font-bold text-sm ${activeSubTab === 'promos' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>الإعلانات والفيديوهات 📢</button>
                             <button onClick={() => setActiveSubTab("requests")} className={`px-4 py-2 rounded font-bold text-sm ${activeSubTab === 'requests' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>طلبات الانضمام ({requests.filter(r => r.status === 'pending').length})</button>
                             <button onClick={() => setActiveSubTab("supportChats")} className={`px-4 py-2 rounded font-bold text-sm ${activeSubTab === 'supportChats' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>محادثات الطلاب 💬</button>
                             <button onClick={() => signOut(window.auth)} className="bg-red-50 text-red-600 px-4 py-2 rounded font-bold text-sm hover:bg-red-100">خروج</button>
@@ -295,12 +305,15 @@
                             <div className="space-y-4">
                                 {requests.length === 0 && <p className="text-gray-500">لا توجد طلبات انضمام حالياً.</p>}
                                 {requests.map(req => (
-                                    <div key={req.id} className="p-4 border rounded shadow-sm flex justify-between items-center">
+                                    <div key={req.id} className="p-4 border rounded shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                                         <div>
-                                            <p className="font-bold text-blue-900">الطالب: {req.studentName}</p>
-                                            <p className="text-sm text-gray-600">الدورة: <span className="font-bold">{req.courseTitle}</span></p>
+                                            <p className="font-bold text-blue-900">
+                                                الطالب: <button onClick={() => handleOpenStudentProfile(req.studentId)} className="text-blue-600 underline hover:text-blue-800 font-extrabold">{req.studentName}</button>
+                                            </p>
+                                            <p className="text-sm text-gray-600">الدورة المطلوبة: <span className="font-bold">{req.courseTitle}</span></p>
                                         </div>
-                                        <div>
+                                        <div className="flex items-center gap-2">
+                                            <button onClick={() => handleOpenStudentProfile(req.studentId)} className="bg-slate-100 text-blue-700 px-3 py-2 rounded font-bold text-xs hover:bg-slate-200">عرض ملف الطالب 👤</button>
                                             {req.status === 'approved' ? (
                                                 <span className="bg-green-100 text-green-700 px-3 py-1 rounded font-bold text-sm">تمت الموافقة ✅</span>
                                             ) : (
@@ -350,6 +363,25 @@
                                         </div>
                                     ))}
                                 </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* نافذة عرض ملف الطالب */}
+                    {viewingStudentModal && (
+                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+                            <div className="bg-white p-6 rounded-xl shadow-2xl max-w-md w-full space-y-4 relative border-t-4 border-blue-600">
+                                <button onClick={() => setViewingStudentModal(null)} className="absolute top-4 left-4 text-gray-400 hover:text-black font-bold text-xl">×</button>
+                                <h3 className="text-xl font-bold text-blue-900 border-b pb-2">ملف الطالب الشخصي 👤</h3>
+                                <div className="space-y-2 text-sm">
+                                    <p><strong>اسم المستخدم:</strong> {viewingStudentModal.username}</p>
+                                    <p><strong>الاسم الكامل:</strong> {viewingStudentModal.fullName || 'غير محدد'}</p>
+                                    <p><strong>المدينة:</strong> {viewingStudentModal.city || 'غير محدد'}</p>
+                                    <p><strong>رقم التواصل:</strong> {viewingStudentModal.phone || 'غير محدد'}</p>
+                                    <p><strong>الصف الدراسي:</strong> {viewingStudentModal.grade || 'غير محدد'}</p>
+                                    <p><strong>المشاركة السابقة في موهبة:</strong> {viewingStudentModal.mawhiba || 'غير محدد'}</p>
+                                </div>
+                                <button onClick={() => setViewingStudentModal(null)} className="w-full bg-blue-600 text-white py-2 rounded font-bold text-sm">إغلاق</button>
                             </div>
                         </div>
                     )}
@@ -474,7 +506,6 @@
             );
         }
 
-        // --- لوحة الطالب ---
         function StudentDashboard({ user }) {
             const [activeTab, setActiveTab] = useState("explore");
             const [profile, setProfile] = useState(null);
@@ -566,7 +597,6 @@
                         <>
                             {activeTab === "explore" && (
                                 <div className="space-y-8">
-                                    {/* قسم الإعلانات والفيديوهات التسويقية في الصفحة الرئيسية */}
                                     {promos.length > 0 && (
                                         <div className="bg-gradient-to-r from-blue-900 to-teal-800 p-6 rounded-2xl shadow-xl text-white">
                                             <h2 className="text-xl font-bold mb-4">🌟 عروض وإعلانات منصة إبداع</h2>
