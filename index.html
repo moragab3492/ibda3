@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>منصة إبداع التعليمية</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // إعدادات منصة إبداع الجديدة
+        const firebaseConfig = {
+            apiKey: "AIzaSyDwSZe5sUglFRmXKbGLqtS6_5qO1r5wf9o",
+            authDomain: "ibda3-91fde.firebaseapp.com",
+            projectId: "ibda3-91fde",
+            storageBucket: "ibda3-91fde.firebasestorage.app",
+            messagingSenderId: "203097189746",
+            appId: "1:203097189746:web:af3a59c8eee851663881eb"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        window.auth = getAuth(app);
+        window.db = getFirestore(app);
+        window.firebaseAPI = {
+            onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut,
+            collection, addDoc, doc, setDoc, getDoc, onSnapshot, query, orderBy
+        };
+    </script>
+</head>
+<body class="bg-slate-50 font-sans">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        const { 
+            onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut,
+            doc, setDoc, getDoc 
+        } = window.firebaseAPI;
+
+        function App() {
+            const [user, setUser] = useState(null);
+            const [role, setRole] = useState(null);
+            const [loading, setLoading] = useState(true);
+
+            useEffect(() => {
+                const unsubscribe = onAuthStateChanged(window.auth, async (currentUser) => {
+                    setUser(currentUser);
+                    if (currentUser) {
+                        // تحديد دور المستخدم (مدير عام، مشرف، أو طالب)
+                        if (currentUser.email === "ragab@ebdaa.com") {
+                            setRole("super_admin");
+                        } else {
+                            // جلب صلاحيات المستخدم من قاعدة البيانات مستقبلاً
+                            setRole("student");
+                        }
+                    } else {
+                        setRole(null);
+                    }
+                    setLoading(false);
+                });
+                return () => unsubscribe();
+            }, []);
+
+            if (loading) return <div className="flex items-center justify-center min-h-screen text-blue-600 font-bold text-xl">جاري تحميل منصة إبداع...</div>;
+
+            if (!user) return <Login />;
+            if (role === "super_admin") return <SuperAdminDashboard />;
+            return <StudentDashboard />;
+        }
+
+        function Login() {
+            const [username, setUsername] = useState("");
+            const [password, setPassword] = useState("");
+            const [error, setError] = useState("");
+            const [loading, setLoading] = useState(false);
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                setError(""); setLoading(true);
+                
+                // تحويل اسم المستخدم لإيميل وهمي للتعامل مع Firebase
+                const email = username.trim().toLowerCase() + "@ebdaa.com";
+
+                try {
+                    // محاولة تسجيل الدخول
+                    await signInWithEmailAndPassword(window.auth, email, password);
+                } catch (err) {
+                    // إذا كان الحساب غير موجود وكان هو حساب المدير رجب، نقوم بإنشائه تلقائياً لأول مرة
+                    if (username === "ragab" && password === "341992" && err.code === "auth/invalid-credential") {
+                        try {
+                            const userCredential = await createUserWithEmailAndPassword(window.auth, email, password);
+                            await setDoc(doc(window.db, "users", userCredential.user.uid), { 
+                                username: "ragab", 
+                                role: "super_admin", 
+                                createdAt: new Date().toISOString() 
+                            });
+                        } catch (createErr) {
+                            setError("حدث خطأ أثناء إعداد حساب الإدارة.");
+                        }
+                    } else {
+                        setError("بيانات الدخول غير صحيحة. يرجى مراجعة الإدارة.");
+                    }
+                }
+                setLoading(false);
+            };
+
+            return (
+                <div className="flex items-center justify-center min-h-screen p-4 bg-slate-100">
+                    <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-sm border-t-4 border-blue-600">
+                        <div className="text-center mb-6">
+                            <h2 className="text-3xl font-bold text-blue-800 mb-2">منصة إبداع 💡</h2>
+                            <h3 className="text-gray-500 text-sm">مرحباً بك في بوابتك للتعلم</h3>
+                        </div>
+                        
+                        {error && <p className="text-red-500 text-sm mb-4 text-center font-bold bg-red-50 p-2 rounded">{error}</p>}
+                        
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div>
+                                <label className="block text-gray-700 text-sm font-bold mb-1">اسم المستخدم</label>
+                                <input type="text" required value={username} onChange={(e) => setUsername(e.target.value)} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="مثال: ragab" />
+                            </div>
+                            <div>
+                                <label className="block text-gray-700 text-sm font-bold mb-1">كلمة المرور</label>
+                                <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="******" />
+                            </div>
+                            <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700 transition">
+                                {loading ? "جاري الدخول..." : "تسجيل الدخول"}
+                            </button>
+                        </form>
+                        <p className="text-center text-xs text-gray-400 mt-4">تسجيل الحسابات الجديدة يتم عبر الإدارة فقط.</p>
+                    </div>
+                </div>
+            );
+        }
+
+        function SuperAdminDashboard() {
+            return (
+                <div className="p-8 max-w-6xl mx-auto">
+                    <div className="flex justify-between items-center border-b pb-4 mb-6">
+                        <h1 className="text-2xl font-bold text-blue-800">إبداع | لوحة تحكم المدير العام (رجب) 👑</h1>
+                        <button onClick={() => signOut(window.auth)} className="bg-red-50 text-red-600 px-4 py-2 rounded-lg font-bold">تسجيل الخروج</button>
+                    </div>
+                    <div className="bg-white p-6 rounded-lg shadow border-l-4 border-blue-500">
+                        <p className="text-gray-700 text-lg">أهلاً بك أستاذ رجب. هذه الواجهة مخصصة لك فقط.</p>
+                        <p className="text-gray-500 mt-2">في المرحلة القادمة سنضيف هنا خيارات إضافة المشرفين، التحكم في الطلاب، وإدارة الكورسات.</p>
+                    </div>
+                </div>
+            );
+        }
+
+        function StudentDashboard() {
+            return (
+                <div className="p-8 max-w-6xl mx-auto">
+                    <div className="flex justify-between items-center border-b pb-4 mb-6">
+                        <h1 className="text-2xl font-bold text-blue-800">إبداع | بوابة الطالب 🎓</h1>
+                        <button onClick={() => signOut(window.auth)} className="bg-red-50 text-red-600 px-4 py-2 rounded-lg font-bold">تسجيل الخروج</button>
+                    </div>
+                    <div className="bg-white p-6 rounded-lg shadow border-l-4 border-green-500">
+                        <p className="text-gray-700 text-lg">أهلاً بك في منصة إبداع.</p>
+                        <p className="text-gray-500 mt-2">قريباً ستتمكن من استكشاف الدورات المتاحة هنا.</p>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
