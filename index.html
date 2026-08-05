@@ -77,7 +77,7 @@
             return <StudentDashboard user={user} />;
         }
 
-        // --- تسجيل الدخول وإنشاء حساب ---
+        // --- تسجيل الدخول ---
         function Login() {
             const [username, setUsername] = useState("");
             const [password, setPassword] = useState("");
@@ -144,12 +144,15 @@
 
         // --- لوحة الإدارة ---
         function AdminDashboard({ user, role }) {
+            const [activeSubTab, setActiveSubTab] = useState("courses"); // courses, requests
             const [courses, setCourses] = useState([]);
+            const [requests, setRequests] = useState([]);
             const [selectedCourseForLectures, setSelectedCourseForLectures] = useState(null);
             
-            // نماذج الإدخال
+            // نماذج إضافة دورة
             const [title, setTitle] = useState("");
             const [duration, setDuration] = useState("");
+            const [price, setPrice] = useState("");
             const [targetAudience, setTargetAudience] = useState("");
             const [instructor, setInstructor] = useState("");
             const [desc, setDesc] = useState("");
@@ -163,19 +166,38 @@
                 return () => unsubscribe();
             }, []);
 
+            useEffect(() => {
+                const qReq = query(collection(window.db, "enrollmentRequests"), orderBy("createdAt", "desc"));
+                const unsubReq = onSnapshot(qReq, (snapshot) => {
+                    setRequests(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                });
+                return () => unsubReq();
+            }, []);
+
             const handleAddCourse = async (e) => {
                 e.preventDefault();
                 await addDoc(collection(window.db, "courses"), {
-                    title, duration, targetAudience, instructor, desc, imageUrl,
+                    title, duration, price, targetAudience, instructor, desc, imageUrl,
                     createdAt: new Date().toISOString()
                 });
-                setTitle(""); setDuration(""); setTargetAudience(""); setInstructor(""); setDesc(""); setImageUrl("");
+                setTitle(""); setDuration(""); setPrice(""); setTargetAudience(""); setInstructor(""); setDesc(""); setImageUrl("");
             };
 
             const handleDeleteCourse = async (id) => {
                 if (confirm("هل أنت متأكد من حذف هذه الدورة؟")) {
                     await deleteDoc(doc(window.db, "courses", id));
                 }
+            };
+
+            const handleApproveRequest = async (reqId, studentId, courseId) => {
+                // حفظ اشتراك الطالب في مجموعة الطالب
+                await setDoc(doc(window.db, "users", studentId, "enrolledCourses", courseId), {
+                    enrolledAt: new Date().toISOString()
+                });
+                // تحديث حالة الطلب إلى موافق عليه
+                await updateDoc(doc(window.db, "enrollmentRequests", reqId), {
+                    status: "approved"
+                });
             };
 
             return (
@@ -185,11 +207,38 @@
                             <h1 className="text-2xl font-bold text-blue-800">لوحة الإدارة ⚙️</h1>
                             <p className="text-sm text-gray-500 mt-1">مرحباً بك، الصلاحية: {role === 'super_admin' ? 'مدير عام 👑' : 'مشرف 🛡️'}</p>
                         </div>
-                        <button onClick={() => signOut(window.auth)} className="bg-red-50 text-red-600 px-4 py-2 rounded-lg font-bold hover:bg-red-100">تسجيل الخروج</button>
+                        <div className="flex gap-2">
+                            <button onClick={() => { setActiveSubTab("courses"); setSelectedCourseForLectures(null); }} className={`px-4 py-2 rounded font-bold text-sm ${activeSubTab === 'courses' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>إدارة الدورات</button>
+                            <button onClick={() => setActiveSubTab("requests")} className={`px-4 py-2 rounded font-bold text-sm ${activeSubTab === 'requests' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>طلبات الانضمام ({requests.filter(r => r.status === 'pending').length})</button>
+                            <button onClick={() => signOut(window.auth)} className="bg-red-50 text-red-600 px-4 py-2 rounded font-bold text-sm hover:bg-red-100">تسجيل الخروج</button>
+                        </div>
                     </div>
 
                     {selectedCourseForLectures ? (
                         <AdminLecturesManager course={selectedCourseForLectures} onBack={() => setSelectedCourseForLectures(null)} />
+                    ) : activeSubTab === 'requests' ? (
+                        <div className="bg-white p-6 rounded-lg shadow">
+                            <h2 className="text-xl font-bold mb-4">طلبات انضمام الطلاب للدورات</h2>
+                            <div className="space-y-4">
+                                {requests.length === 0 && <p className="text-gray-500">لا توجد طلبات انضمام حالياً.</p>}
+                                {requests.map(req => (
+                                    <div key={req.id} className="p-4 border rounded shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                                        <div>
+                                            <p className="font-bold text-blue-900">الطالب: {req.studentName} (رقم التسجيل: {req.studentId.substring(0,6)})</p>
+                                            <p className="text-sm text-gray-600">الدورة المطلوبة: <span className="font-bold text-black">{req.courseTitle}</span></p>
+                                            <p className="text-xs text-gray-400 mt-1">تاريخ الطلب: {new Date(req.createdAt).toLocaleDateString('ar-SA')}</p>
+                                        </div>
+                                        <div>
+                                            {req.status === 'approved' ? (
+                                                <span className="bg-green-100 text-green-700 px-3 py-1 rounded font-bold text-sm">تمت الموافقة ✅</span>
+                                            ) : (
+                                                <button onClick={() => handleApproveRequest(req.id, req.studentId, req.courseId)} className="bg-blue-600 text-white px-4 py-2 rounded font-bold text-sm hover:bg-blue-700">موافقة وتفعيل الاشتراك</button>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                     ) : (
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                             <div className="lg:col-span-1">
@@ -199,6 +248,7 @@
                                         <input type="text" placeholder="اسم الدورة *" required value={title} onChange={e => setTitle(e.target.value)} className="w-full px-3 py-2 border rounded outline-none" />
                                         <input type="text" placeholder="المدرب *" required value={instructor} onChange={e => setInstructor(e.target.value)} className="w-full px-3 py-2 border rounded outline-none" />
                                         <input type="text" placeholder="مدة الدورة *" required value={duration} onChange={e => setDuration(e.target.value)} className="w-full px-3 py-2 border rounded outline-none" />
+                                        <input type="text" placeholder="سعر الدورة (مثال: 299 ر.س) *" required value={price} onChange={e => setPrice(e.target.value)} className="w-full px-3 py-2 border rounded outline-none" />
                                         <input type="text" placeholder="الفئة المستهدفة *" required value={targetAudience} onChange={e => setTargetAudience(e.target.value)} className="w-full px-3 py-2 border rounded outline-none" />
                                         <textarea placeholder="وصف الدورة" value={desc} onChange={e => setDesc(e.target.value)} className="w-full px-3 py-2 border rounded outline-none h-20"></textarea>
                                         <input type="url" placeholder="رابط صورة الغلاف" value={imageUrl} onChange={e => setImageUrl(e.target.value)} className="w-full px-3 py-2 border rounded outline-none text-left" dir="ltr" />
@@ -216,7 +266,7 @@
                                                 {course.imageUrl && <img src={course.imageUrl} alt={course.title} className="w-20 h-16 object-cover rounded" />}
                                                 <div>
                                                     <h3 className="font-bold text-lg text-blue-900">{course.title}</h3>
-                                                    <p className="text-sm text-gray-500">المدرب: {course.instructor}</p>
+                                                    <p className="text-sm text-gray-500">المدرب: {course.instructor} | السعر: <span className="text-green-600 font-bold">{course.price}</span></p>
                                                 </div>
                                             </div>
                                             <div className="flex gap-2 w-full sm:w-auto">
@@ -299,6 +349,8 @@
             const [activeTab, setActiveTab] = useState("explore"); // explore, myCourses, profile
             const [profile, setProfile] = useState(null);
             const [courses, setCourses] = useState([]);
+            const [enrolledCourseIds, setEnrolledCourseIds] = useState([]);
+            const [myRequests, setMyRequests] = useState({});
             const [selectedCourse, setSelectedCourse] = useState(null);
 
             useEffect(() => {
@@ -308,26 +360,62 @@
                 };
                 fetchProfile();
 
+                // جلب الدورات
                 const q = query(collection(window.db, "courses"), orderBy("createdAt", "desc"));
                 const unsubscribe = onSnapshot(q, (snapshot) => {
                     setCourses(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
                 });
-                return () => unsubscribe();
+
+                // جلب اشتراكات الطالب
+                const unsubEnrolled = onSnapshot(collection(window.db, "users", user.uid, "enrolledCourses"), (snap) => {
+                    setEnrolledCourseIds(snap.docs.map(d => d.id));
+                });
+
+                // جلب طلبات الطالب
+                const unsubReqs = onSnapshot(collection(window.db, "enrollmentRequests"), (snap) => {
+                    const reqMap = {};
+                    snap.docs.forEach(d => {
+                        const data = d.data();
+                        if (data.studentId === user.uid) {
+                            reqMap[data.courseId] = data.status;
+                        }
+                    });
+                    setMyRequests(reqMap);
+                });
+
+                return () => {
+                    unsubscribe();
+                    unsubEnrolled();
+                    unsubReqs();
+                };
             }, [user.uid]);
 
             if (profile && !profile.profileComplete) {
                 return <CompleteProfile user={user} onComplete={(data) => setProfile({ ...profile, ...data, profileComplete: true })} />;
             }
 
+            const handleRequestEnrollment = async (course) => {
+                await addDoc(collection(window.db, "enrollmentRequests"), {
+                    studentId: user.uid,
+                    studentName: profile?.fullName || user.email,
+                    courseId: course.id,
+                    courseTitle: course.title,
+                    status: "pending",
+                    createdAt: new Date().toISOString()
+                });
+            };
+
+            const enrolledCoursesList = courses.filter(c => enrolledCourseIds.includes(c.id));
+
             return (
                 <div className="p-4 md:p-8 max-w-7xl mx-auto">
                     <div className="flex flex-col sm:flex-row justify-between items-center border-b pb-4 mb-6 gap-4">
                         <h1 className="text-2xl font-bold text-blue-800">منصة إبداع 💡</h1>
-                        <div className="flex gap-2">
-                            <button onClick={() => { setActiveTab("explore"); setSelectedCourse(null); }} className={`px-4 py-2 rounded font-bold ${activeTab === 'explore' && !selectedCourse ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>استكشاف الدورات</button>
-                            <button onClick={() => { setActiveTab("myCourses"); setSelectedCourse(null); }} className={`px-4 py-2 rounded font-bold ${activeTab === 'myCourses' && !selectedCourse ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>دوراتي المشترك فيها</button>
-                            <button onClick={() => { setActiveTab("profile"); setSelectedCourse(null); }} className={`px-4 py-2 rounded font-bold ${activeTab === 'profile' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>ملف الطالب 👤</button>
-                            <button onClick={() => signOut(window.auth)} className="bg-red-50 text-red-600 px-3 rounded font-bold">خروج</button>
+                        <div className="flex flex-wrap gap-2">
+                            <button onClick={() => { setActiveTab("explore"); setSelectedCourse(null); }} className={`px-4 py-2 rounded font-bold text-sm ${activeTab === 'explore' && !selectedCourse ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>استكشاف الدورات</button>
+                            <button onClick={() => { setActiveTab("myCourses"); setSelectedCourse(null); }} className={`px-4 py-2 rounded font-bold text-sm ${activeTab === 'myCourses' && !selectedCourse ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>دوراتي المشترك فيها ({enrolledCoursesList.length})</button>
+                            <button onClick={() => { setActiveTab("profile"); setSelectedCourse(null); }} className={`px-4 py-2 rounded font-bold text-sm ${activeTab === 'profile' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>ملف الطالب 👤</button>
+                            <button onClick={() => signOut(window.auth)} className="bg-red-50 text-red-600 px-3 py-2 rounded font-bold text-sm">خروج</button>
                         </div>
                     </div>
 
@@ -337,23 +425,46 @@
                         <>
                             {activeTab === "explore" && (
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    {courses.map(course => (
-                                        <div key={course.id} className="bg-white rounded-lg shadow overflow-hidden flex flex-col border-t-4 border-blue-500">
-                                            {course.imageUrl && <img src={course.imageUrl} className="w-full h-40 object-cover" />}
-                                            <div className="p-4 flex flex-col flex-1">
-                                                <h3 className="font-bold text-lg text-blue-900 mb-1">{course.title}</h3>
-                                                <p className="text-gray-500 text-sm mb-4 flex-1">{course.desc}</p>
-                                                <button onClick={() => setSelectedCourse(course)} className="w-full bg-blue-50 text-blue-700 py-2 rounded font-bold">عرض تفاصيل الدورة</button>
+                                    {courses.map(course => {
+                                        const isEnrolled = enrolledCourseIds.includes(course.id);
+                                        const reqStatus = myRequests[course.id];
+                                        return (
+                                            <div key={course.id} className="bg-white rounded-lg shadow overflow-hidden flex flex-col border-t-4 border-blue-500">
+                                                {course.imageUrl && <img src={course.imageUrl} className="w-full h-40 object-cover" />}
+                                                <div className="p-4 flex flex-col flex-1">
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <h3 className="font-bold text-lg text-blue-900">{course.title}</h3>
+                                                        <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">{course.price}</span>
+                                                    </div>
+                                                    <p className="text-gray-500 text-sm mb-4 flex-1">{course.desc}</p>
+                                                    
+                                                    {isEnrolled ? (
+                                                        <button onClick={() => setSelectedCourse(course)} className="w-full bg-green-600 text-white py-2 rounded font-bold text-sm">دخول محتوى الدورة 🎓</button>
+                                                    ) : reqStatus === 'pending' ? (
+                                                        <button disabled className="w-full bg-yellow-100 text-yellow-800 py-2 rounded font-bold text-sm cursor-not-allowed">طلب الانضمام قيد المراجعة ⏳</button>
+                                                    ) : (
+                                                        <button onClick={() => handleRequestEnrollment(course)} className="w-full bg-blue-600 text-white py-2 rounded font-bold text-sm hover:bg-blue-700">طلب الانضمام للدورة</button>
+                                                    )}
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             )}
 
                             {activeTab === "myCourses" && (
-                                <div>
-                                    <h2 className="text-xl font-bold mb-4">دوراتي المشترك فيها</h2>
-                                    <p className="text-gray-500">قريباً سيتم ربط اشتراكات الدورات تلقائياً من قِبل الإدارة.</p>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    {enrolledCoursesList.length === 0 && <p className="text-gray-500 col-span-full">ليس لديك دورات مشتركة حالياً. اطلب الانضمام من قسم الاستكشاف.</p>}
+                                    {enrolledCoursesList.map(course => (
+                                        <div key={course.id} className="bg-white rounded-lg shadow overflow-hidden flex flex-col border-t-4 border-green-500">
+                                            {course.imageUrl && <img src={course.imageUrl} className="w-full h-40 object-cover" />}
+                                            <div className="p-4 flex flex-col flex-1">
+                                                <h3 className="font-bold text-lg text-blue-900 mb-2">{course.title}</h3>
+                                                <p className="text-gray-500 text-sm mb-4 flex-1">{course.desc}</p>
+                                                <button onClick={() => setSelectedCourse(course)} className="w-full bg-blue-600 text-white py-2 rounded font-bold text-sm">مشاهدة الحلقات 📺</button>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             )}
 
@@ -364,7 +475,7 @@
             );
         }
 
-        // --- إكمال بيانات الطالب لأول مرة ---
+        // --- إكمال بيانات الطالب ---
         function CompleteProfile({ user, onComplete }) {
             const [fullName, setFullName] = useState("");
             const [city, setCity] = useState("");
@@ -414,21 +525,28 @@
             );
         }
 
-        // --- عرض ملف الطالب ---
+        // --- عرض ملف الطالب مع رقم التسجيل وأيقونة التواصل ---
         function StudentProfileView({ user, profile }) {
             return (
-                <div className="bg-white p-6 rounded-lg shadow max-w-md mx-auto border-t-4 border-blue-600 space-y-3">
+                <div className="bg-white p-6 rounded-lg shadow max-w-md mx-auto border-t-4 border-blue-600 space-y-4">
                     <h2 className="text-xl font-bold text-blue-900 border-b pb-2">ملف الطالب الشخصي 👤</h2>
+                    <p><strong>رقم التسجيل الفريد:</strong> <span className="text-xs bg-slate-100 p-1 rounded font-mono select-all">{user.uid}</span></p>
                     <p><strong>الاسم الكامل:</strong> {profile?.fullName}</p>
                     <p><strong>المدينة:</strong> {profile?.city}</p>
                     <p><strong>رقم التواصل:</strong> {profile?.phone}</p>
                     <p><strong>الصف الدراسي:</strong> {profile?.grade}</p>
                     <p><strong>المشاركة في موهبة:</strong> {profile?.mawhiba}</p>
+                    
+                    <div className="border-t pt-4 bg-blue-50 p-4 rounded text-center">
+                        <h4 className="font-bold text-blue-800 mb-1">📞 التواصل مع المنصة</h4>
+                        <p className="text-xs text-gray-600 mb-2">للاستفسار عن الدفع وطرق التفعيل، تواصل معنا عبر الواتساب:</p>
+                        <a href="https://wa.me/966500000000" target="_blank" className="inline-block bg-green-600 text-white px-4 py-2 rounded font-bold text-sm hover:bg-green-700">تواصل عبر الواتساب 💬</a>
+                    </div>
                 </div>
             );
         }
 
-        // --- عرض الدورة والحلقات والتعليقات للطالب ---
+        // --- عرض الدورة والحلقات والتعليقات ---
         function StudentCourseView({ course, user, onBack }) {
             const [lectures, setLectures] = useState([]);
             const [activeLecture, setActiveLecture] = useState(null);
@@ -469,7 +587,7 @@
 
             return (
                 <div>
-                    <button onClick={onBack} className="mb-4 bg-gray-200 text-gray-700 px-4 py-2 rounded font-bold text-sm">← العودة لقائمة الدورات</button>
+                    <button onClick={onBack} className="mb-4 bg-gray-200 text-gray-700 px-4 py-2 rounded font-bold text-sm">← العودة</button>
                     <div className="bg-white p-6 rounded-lg shadow mb-6">
                         <h2 className="text-2xl font-bold text-blue-900 mb-2">{course.title}</h2>
                         <p className="text-gray-600">{course.desc}</p>
@@ -498,7 +616,6 @@
                                         </div>
                                     )}
 
-                                    {/* قسم التعليقات */}
                                     <div className="border-t pt-4 mt-6">
                                         <h4 className="font-bold mb-3">التعليقات والاستفسارات 💬</h4>
                                         <div className="space-y-3 mb-4 max-h-60 overflow-y-auto">
