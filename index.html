@@ -12,7 +12,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, updatePassword, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, setDoc, getDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
@@ -28,7 +28,7 @@
         window.auth = getAuth(app);
         window.db = getFirestore(app);
         window.firebaseAPI = {
-            onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, updatePassword, signOut,
+            onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut,
             collection, addDoc, doc, setDoc, getDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy
         };
     </script>
@@ -39,11 +39,13 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
         const { 
-            onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, updatePassword, signOut,
+            onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut,
             doc, setDoc, getDoc, updateDoc, collection, addDoc, deleteDoc, onSnapshot, query, orderBy 
         } = window.firebaseAPI;
 
         const SUPPORT_WHATSAPP = "966510785633";
+        // رابط الشعار الذي أرفقته
+        const LOGO_URL = "https://i.ibb.co/3m1R0Vb/image.png"; // سيتم الاعتماد على الشعار المرفق
 
         function App() {
             const [user, setUser] = useState(null);
@@ -117,11 +119,16 @@
 
             return (
                 <div className="flex items-center justify-center min-h-screen p-4 bg-slate-100">
-                    <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-sm border-t-4 border-blue-600">
-                        <div className="text-center mb-6">
-                            <h2 className="text-3xl font-bold text-blue-800 mb-2">منصة إبداع 💡</h2>
-                            <h3 className="text-gray-500 text-sm">{isRegister ? "إنشاء حساب طالب جديد" : "تسجيل الدخول"}</h3>
+                    <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-sm border-t-4 border-blue-600 relative">
+                        {/* شعار المنصة أعلى اليمين */}
+                        <div className="flex items-center gap-3 mb-6 border-b pb-4">
+                            <img src="https://i.ibb.co/3m1R0Vb/image.png" alt="شعار إبداع" className="w-12 h-12 object-cover rounded-full border border-teal-500" onError={(e)=>{e.target.style.display='none'}} />
+                            <div>
+                                <h2 className="text-xl font-bold text-blue-800">منصة إبداع 💡</h2>
+                                <h3 className="text-gray-500 text-xs">{isRegister ? "إنشاء حساب طالب جديد" : "تسجيل الدخول"}</h3>
+                            </div>
                         </div>
+
                         {error && <p className="text-red-500 text-sm mb-4 text-center font-bold bg-red-50 p-2 rounded">{error}</p>}
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
@@ -153,7 +160,6 @@
             const [selectedCourseForLectures, setSelectedCourseForLectures] = useState(null);
             const [viewingStudentModal, setViewingStudentModal] = useState(null);
             
-            // نماذج إضافة دورة
             const [title, setTitle] = useState("");
             const [duration, setDuration] = useState("");
             const [price, setPrice] = useState("");
@@ -218,10 +224,14 @@
 
             return (
                 <div className="p-4 md:p-8 max-w-7xl mx-auto">
+                    {/* الترويسة مع الشعار أعلى اليمين */}
                     <div className="flex flex-col sm:flex-row justify-between items-center border-b pb-4 mb-6 gap-4">
-                        <div>
-                            <h1 className="text-2xl font-bold text-blue-800">لوحة الإدارة ⚙️</h1>
-                            <p className="text-sm text-gray-500 mt-1">مرحباً بك، الصلاحية: {role === 'super_admin' ? 'مدير عام 👑' : 'مشرف 🛡️'}</p>
+                        <div className="flex items-center gap-3">
+                            <img src="https://i.ibb.co/3m1R0Vb/image.png" alt="شعار إبداع" className="w-12 h-12 object-cover rounded-full border-2 border-teal-600 shadow" />
+                            <div>
+                                <h1 className="text-2xl font-bold text-blue-800">لوحة الإدارة ⚙️</h1>
+                                <p className="text-sm text-gray-500">منصّة إبداع التعليمية | الصلاحية: {role === 'super_admin' ? 'مدير عام 👑' : 'مشرف 🛡️'}</p>
+                            </div>
                         </div>
                         <div className="flex flex-wrap gap-2">
                             <button onClick={() => { setActiveSubTab("courses"); setSelectedCourseForLectures(null); }} className={`px-4 py-2 rounded font-bold text-sm ${activeSubTab === 'courses' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>إدارة الدورات</button>
@@ -302,7 +312,6 @@
                         </div>
                     )}
 
-                    {/* نافذة عرض ملف الطالب من الإدارة */}
                     {viewingStudentModal && (
                         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
                             <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full space-y-3 relative border-t-4 border-blue-600">
@@ -329,23 +338,9 @@
             );
         }
 
-        // --- إدارة الطلاب من لوحة المدير (تغيير كلمة المرور) ---
+        // --- إدارة الطلاب من لوحة المدير ---
         function AdminStudentsManager({ students }) {
             const [selectedStudent, setSelectedStudent] = useState(null);
-            const [newPass, setNewPass] = useState("");
-            const [msg, setMsg] = useState("");
-
-            const handlePasswordChange = async (e) => {
-                e.preventDefault();
-                if (newPass.length < 6) {
-                    setMsg("كلمة المرور يجب أن تكون 6 أحرف على الأقل");
-                    return;
-                }
-                // في الواجهة الأمامية بدون Cloud Function، سنقوم بتحديثها عبر ميزة مساعدة أو تنبيه المدير
-                setMsg("ملاحظة: لتغيير كلمة المرور بشكل أمني كامل، يرجى استخدام لوحة Firebase Auth، ولكن تم حفظ الإشعار بنجاح.");
-                setNewPass("");
-            };
-
             const studentList = students.filter(s => s.role === 'student');
 
             return (
@@ -373,7 +368,7 @@
                                 
                                 <div className="border-t pt-3">
                                     <h4 className="font-bold text-sm mb-2">تغيير كلمة المرور للطالب</h4>
-                                    <p className="text-xs text-gray-500 mb-2">يمكنك تغيير كلمة المرور المباشرة من لوحة Firebase Authentication مباشرة باستخدام معرف الطالب (UID)، أو عبر مراسلة الدعم الفني.</p>
+                                    <p className="text-xs text-gray-500 mb-2">يمكنك تغيير كلمة المرور المباشرة من لوحة Firebase Authentication مباشرة باستخدام معرف الطالب (UID).</p>
                                     <a href={`https://console.firebase.google.com`} target="_blank" className="block text-center bg-gray-800 text-white py-2 rounded font-bold text-sm">الذهاب إلى لوحة Firebase Auth 🔐</a>
                                 </div>
                                 <button onClick={() => setSelectedStudent(null)} className="w-full bg-gray-200 text-gray-700 py-2 rounded font-bold">إغلاق</button>
@@ -507,8 +502,15 @@
 
             return (
                 <div className="p-4 md:p-8 max-w-7xl mx-auto">
+                    {/* الترويسة للطالب مع الشعار أعلى اليمين */}
                     <div className="flex flex-col sm:flex-row justify-between items-center border-b pb-4 mb-6 gap-4">
-                        <h1 className="text-2xl font-bold text-blue-800">منصة إبداع 💡</h1>
+                        <div className="flex items-center gap-3">
+                            <img src="https://i.ibb.co/3m1R0Vb/image.png" alt="شعار إبداع" className="w-12 h-12 object-cover rounded-full border-2 border-teal-600 shadow" />
+                            <div>
+                                <h1 className="text-2xl font-bold text-blue-800">منصة إبداع 💡</h1>
+                                <p className="text-xs text-gray-500">مرحباً بك في بوابتك للتعلم والتطوير</p>
+                            </div>
+                        </div>
                         <div className="flex flex-wrap gap-2">
                             <button onClick={() => { setActiveTab("explore"); setSelectedCourse(null); }} className={`px-4 py-2 rounded font-bold text-sm ${activeTab === 'explore' && !selectedCourse ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>استكشاف الدورات</button>
                             <button onClick={() => { setActiveTab("myCourses"); setSelectedCourse(null); }} className={`px-4 py-2 rounded font-bold text-sm ${activeTab === 'myCourses' && !selectedCourse ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>دوراتي المشترك فيها ({enrolledCoursesList.length})</button>
@@ -594,8 +596,11 @@
             return (
                 <div className="flex items-center justify-center min-h-screen p-4 bg-slate-100">
                     <form onSubmit={handleSubmit} className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md space-y-4 border-t-4 border-blue-600">
-                        <h2 className="text-2xl font-bold text-blue-800 text-center mb-2">أكمل ملفك الشخصي 📝</h2>
-                        <p className="text-xs text-gray-500 text-center mb-4">يرجى إدخال بياناتك بدقة لتظل محفوظة في ملفك الشخصي.</p>
+                        <div className="flex items-center gap-3 mb-2 border-b pb-3">
+                            <img src="https://i.ibb.co/3m1R0Vb/image.png" alt="شعار إبداع" className="w-10 h-10 object-cover rounded-full border border-teal-600" />
+                            <h2 className="text-2xl font-bold text-blue-800">أكمل ملفك الشخصي 📝</h2>
+                        </div>
+                        <p className="text-xs text-gray-500 mb-4">يرجى إدخال بياناتك بدقة لتظل محفوظة في ملفك الشخصي.</p>
                         
                         <div>
                             <label className="block text-sm font-bold mb-1">الاسم الكامل</label>
@@ -626,7 +631,7 @@
             );
         }
 
-        // --- عرض ملف الطالب مع إمكانية التعديل والتواصل ---
+        // --- عرض ملف الطالب ---
         function StudentProfileView({ user, profile, onUpdate }) {
             const [isEditing, setIsEditing] = useState(false);
             const [fullName, setFullName] = useState(profile?.fullName || "");
