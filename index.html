@@ -77,7 +77,6 @@
             return <StudentDashboard user={user} />;
         }
 
-        // --- دالة تحويل الصورة المرفوعة من الجهاز إلى Base64 ---
         const handleImageUpload = (e, callback) => {
             const file = e.target.files[0];
             if (file) {
@@ -167,6 +166,9 @@
             const [promos, setPromos] = useState([]);
             const [selectedCourseForLectures, setSelectedCourseForLectures] = useState(null);
             const [viewingStudentModal, setViewingStudentModal] = useState(null);
+
+            const [editingCourse, setEditingCourse] = useState(null);
+            const [editingPromo, setEditingPromo] = useState(null);
             
             // نماذج إضافة دورة
             const [title, setTitle] = useState("");
@@ -175,11 +177,12 @@
             const [targetAudience, setTargetAudience] = useState("");
             const [instructor, setInstructor] = useState("");
             const [desc, setDesc] = useState("");
+            const [previewVideoUrl, setPreviewVideoUrl] = useState("");
             const [imageUrl, setImageUrl] = useState("");
 
             // نموذج إضافة عرض أو إعلان تسويقي
             const [promoTitle, setPromoTitle] = useState("");
-            const [promoType, setPromoType] = useState("image"); // image, video, text
+            const [promoType, setPromoType] = useState("image");
             const [promoUrl, setPromoUrl] = useState("");
             const [promoText, setPromoText] = useState("");
 
@@ -216,10 +219,25 @@
             const handleAddCourse = async (e) => {
                 e.preventDefault();
                 await addDoc(collection(window.db, "courses"), {
-                    title, duration, price, targetAudience, instructor, desc, imageUrl,
+                    title, duration, price, targetAudience, instructor, desc, previewVideoUrl, imageUrl,
                     createdAt: new Date().toISOString()
                 });
-                setTitle(""); setDuration(""); setPrice(""); setTargetAudience(""); setInstructor(""); setDesc(""); setImageUrl("");
+                setTitle(""); setDuration(""); setPrice(""); setTargetAudience(""); setInstructor(""); setDesc(""); setPreviewVideoUrl(""); setImageUrl("");
+            };
+
+            const handleUpdateCourse = async (e) => {
+                e.preventDefault();
+                await updateDoc(doc(window.db, "courses", editingCourse.id), {
+                    title: editingCourse.title,
+                    duration: editingCourse.duration,
+                    price: editingCourse.price,
+                    targetAudience: editingCourse.targetAudience,
+                    instructor: editingCourse.instructor,
+                    desc: editingCourse.desc,
+                    previewVideoUrl: editingCourse.previewVideoUrl || "",
+                    imageUrl: editingCourse.imageUrl
+                });
+                setEditingCourse(null);
             };
 
             const handleDeleteCourse = async (id) => {
@@ -233,11 +251,22 @@
                 await addDoc(collection(window.db, "promos"), {
                     title: promoTitle,
                     type: promoType,
-                    url: promoType === 'image' ? promoUrl : promoType === 'video' ? promoUrl : '',
+                    url: promoType !== 'text' ? promoUrl : '',
                     text: promoType === 'text' ? promoText : '',
                     createdAt: new Date().toISOString()
                 });
                 setPromoTitle(""); setPromoUrl(""); setPromoText("");
+            };
+
+            const handleUpdatePromo = async (e) => {
+                e.preventDefault();
+                await updateDoc(doc(window.db, "promos", editingPromo.id), {
+                    title: editingPromo.title,
+                    type: editingPromo.type,
+                    url: editingPromo.type !== 'text' ? editingPromo.url : '',
+                    text: editingPromo.type === 'text' ? editingPromo.text : ''
+                });
+                setEditingPromo(null);
             };
 
             const handleDeletePromo = async (id) => {
@@ -328,7 +357,10 @@
                                                 )}
                                             </div>
                                         </div>
-                                        <button onClick={() => handleDeletePromo(p.id)} className="bg-red-50 text-red-600 px-3 py-1 rounded font-bold text-sm">حذف</button>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => setEditingPromo(p)} className="bg-blue-50 text-blue-700 px-3 py-1 rounded font-bold text-sm">تعديل ✏️</button>
+                                            <button onClick={() => handleDeletePromo(p.id)} className="bg-red-50 text-red-600 px-3 py-1 rounded font-bold text-sm">حذف</button>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
@@ -371,7 +403,8 @@
                                         <input type="text" placeholder="مدة الدورة *" required value={duration} onChange={e => setDuration(e.target.value)} className="w-full px-3 py-2 border rounded outline-none" />
                                         <input type="text" placeholder="سعر الدورة *" required value={price} onChange={e => setPrice(e.target.value)} className="w-full px-3 py-2 border rounded outline-none" />
                                         <input type="text" placeholder="الفئة المستهدفة *" required value={targetAudience} onChange={e => setTargetAudience(e.target.value)} className="w-full px-3 py-2 border rounded outline-none" />
-                                        <textarea placeholder="وصف الدورة" value={desc} onChange={e => setDesc(e.target.value)} className="w-full px-3 py-2 border rounded outline-none h-20"></textarea>
+                                        <textarea placeholder="وصف الدورة التفصيلي" value={desc} onChange={e => setDesc(e.target.value)} className="w-full px-3 py-2 border rounded outline-none h-20"></textarea>
+                                        <input type="url" placeholder="رابط الفيديو التجريبي (يوتيوب)" value={previewVideoUrl} onChange={e => setPreviewVideoUrl(e.target.value)} className="w-full px-3 py-2 border rounded outline-none text-sm" dir="ltr" />
                                         
                                         <div>
                                             <label className="block text-xs font-bold mb-1">صورة غلاف الدورة من الاستديو:</label>
@@ -398,12 +431,61 @@
                                             </div>
                                             <div className="flex gap-2">
                                                 <button onClick={() => setSelectedCourseForLectures(course)} className="bg-blue-50 text-blue-700 px-3 py-2 rounded font-bold text-sm">الحلقات 📺</button>
+                                                <button onClick={() => setEditingCourse(course)} className="bg-amber-50 text-amber-700 px-3 py-2 rounded font-bold text-sm">تعديل ✏️</button>
                                                 <button onClick={() => handleDeleteCourse(course.id)} className="bg-red-50 text-red-600 px-3 py-2 rounded font-bold text-sm">حذف</button>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
                             </div>
+                        </div>
+                    )}
+
+                    {/* نافذة تعديل الدورة */}
+                    {editingCourse && (
+                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+                            <form onSubmit={handleUpdateCourse} className="bg-white p-6 rounded-xl shadow-2xl max-w-md w-full space-y-3 relative border-t-4 border-blue-600">
+                                <button type="button" onClick={() => setEditingCourse(null)} className="absolute top-4 left-4 text-gray-400 hover:text-black font-bold text-xl">×</button>
+                                <h3 className="text-xl font-bold text-blue-900 border-b pb-2">تعديل الدورة ✏️</h3>
+                                <input type="text" required value={editingCourse.title} onChange={e => setEditingCourse({...editingCourse, title: e.target.value})} className="w-full px-3 py-2 border rounded text-sm" placeholder="اسم الدورة" />
+                                <input type="text" required value={editingCourse.instructor} onChange={e => setEditingCourse({...editingCourse, instructor: e.target.value})} className="w-full px-3 py-2 border rounded text-sm" placeholder="المدرب" />
+                                <input type="text" required value={editingCourse.duration} onChange={e => setEditingCourse({...editingCourse, duration: e.target.value})} className="w-full px-3 py-2 border rounded text-sm" placeholder="المدة" />
+                                <input type="text" required value={editingCourse.price} onChange={e => setEditingCourse({...editingCourse, price: e.target.value})} className="w-full px-3 py-2 border rounded text-sm" placeholder="السعر" />
+                                <input type="text" required value={editingCourse.targetAudience} onChange={e => setEditingCourse({...editingCourse, targetAudience: e.target.value})} className="w-full px-3 py-2 border rounded text-sm" placeholder="الفئة المستهدفة" />
+                                <textarea value={editingCourse.desc} onChange={e => setEditingCourse({...editingCourse, desc: e.target.value})} className="w-full px-3 py-2 border rounded text-sm h-20" placeholder="الوصف"></textarea>
+                                <input type="url" value={editingCourse.previewVideoUrl || ""} onChange={e => setEditingCourse({...editingCourse, previewVideoUrl: e.target.value})} className="w-full px-3 py-2 border rounded text-sm" placeholder="رابط الفيديو التجريبي" dir="ltr" />
+                                <div>
+                                    <label className="block text-xs font-bold mb-1">تغيير الصورة:</label>
+                                    <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, (res) => setEditingCourse({...editingCourse, imageUrl: res}))} className="w-full text-xs border p-2 rounded bg-slate-50" />
+                                    {editingCourse.imageUrl && <img src={editingCourse.imageUrl} className="w-full h-20 object-cover mt-2 rounded border" />}
+                                </div>
+                                <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded font-bold text-sm">حفظ التعديلات</button>
+                            </form>
+                        </div>
+                    )}
+
+                    {/* نافذة تعديل الإعلان */}
+                    {editingPromo && (
+                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+                            <form onSubmit={handleUpdatePromo} className="bg-white p-6 rounded-xl shadow-2xl max-w-md w-full space-y-3 relative border-t-4 border-blue-600">
+                                <button type="button" onClick={() => setEditingPromo(null)} className="absolute top-4 left-4 text-gray-400 hover:text-black font-bold text-xl">×</button>
+                                <h3 className="text-xl font-bold text-blue-900 border-b pb-2">تعديل الإعلان ✏️</h3>
+                                <input type="text" required value={editingPromo.title} onChange={e => setEditingPromo({...editingPromo, title: e.target.value})} className="w-full px-3 py-2 border rounded text-sm" placeholder="العنوان" />
+                                <div>
+                                    <label className="block text-xs font-bold mb-1">النوع</label>
+                                    <select value={editingPromo.type} onChange={e => setEditingPromo({...editingPromo, type: e.target.value})} className="w-full px-3 py-2 border rounded text-sm">
+                                        <option value="image">صورة 🖼️</option>
+                                        <option value="video">فيديو 📺</option>
+                                        <option value="text">نص 📝</option>
+                                    </select>
+                                </div>
+                                {editingPromo.type === 'text' ? (
+                                    <textarea required value={editingPromo.text} onChange={e => setEditingPromo({...editingPromo, text: e.target.value})} className="w-full px-3 py-2 border rounded text-sm h-24" placeholder="نص الإعلان"></textarea>
+                                ) : (
+                                    <input type="text" required value={editingPromo.url} onChange={e => setEditingPromo({...editingPromo, url: e.target.value})} className="w-full px-3 py-2 border rounded text-sm" placeholder="الرابط" />
+                                )}
+                                <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded font-bold text-sm">حفظ التعديلات</button>
+                            </form>
                         </div>
                     )}
 
@@ -553,7 +635,9 @@
             const [promos, setPromos] = useState([]);
             const [enrolledCourseIds, setEnrolledCourseIds] = useState([]);
             const [myRequests, setMyRequests] = useState({});
-            const [selectedCourse, setSelectedCourse] = useState(null);
+            const [selectedCourse, setSelectedCourse] = useState(null); // للمشاهدة بعد التسجيل
+            const [previewCourseModal, setPreviewCourseModal] = useState(null); // لمعاينة الدورة قبل التسجيل
+            const [selectedPromoModal, setSelectedPromoModal] = useState(null); // لمعاينة الإعلان بالكامل
             const [showSupportChat, setShowSupportChat] = useState(false);
 
             useEffect(() => {
@@ -609,6 +693,7 @@
                     status: "pending",
                     createdAt: new Date().toISOString()
                 });
+                alert("تم إرسال طلب الانضمام بنجاح! سيتم مراجعته من قِبل الإدارة.");
             };
 
             const enrolledCoursesList = courses.filter(c => enrolledCourseIds.includes(c.id));
@@ -642,17 +727,18 @@
                                             <h2 className="text-xl font-bold mb-4">🌟 عروض وإعلانات منصة إبداع</h2>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                 {promos.map(p => (
-                                                    <div key={p.id} className="bg-white/10 p-4 rounded-xl backdrop-blur border border-white/20">
+                                                    <div key={p.id} onClick={() => setSelectedPromoModal(p)} className="bg-white/10 p-4 rounded-xl backdrop-blur border border-white/25 cursor-pointer hover:bg-white/20 transition">
                                                         <h3 className="font-bold text-lg mb-2">{p.title}</h3>
                                                         {p.type === 'image' ? (
                                                             <img src={p.url} alt={p.title} className="w-full h-48 object-cover rounded-lg shadow" />
                                                         ) : p.type === 'video' ? (
-                                                            <div className="w-full h-48 bg-black rounded-lg overflow-hidden">
-                                                                <iframe src={p.url} className="w-full h-full" allowFullScreen></iframe>
+                                                            <div className="w-full h-48 bg-black rounded-lg overflow-hidden pointer-events-none">
+                                                                <iframe src={p.url} className="w-full h-full"></iframe>
                                                             </div>
                                                         ) : (
-                                                            <p className="text-slate-100 text-sm bg-black/20 p-3 rounded-lg leading-relaxed">{p.text}</p>
+                                                            <p className="text-slate-100 text-sm bg-black/20 p-3 rounded-lg line-clamp-3">{p.text}</p>
                                                         )}
+                                                        <span className="inline-block mt-3 text-xs bg-white/20 text-white px-2.5 py-1 rounded-full font-bold">اضغط لعرض التفاصيل الكاملة 🔍</span>
                                                     </div>
                                                 ))}
                                             </div>
@@ -666,22 +752,16 @@
                                                 const isEnrolled = enrolledCourseIds.includes(course.id);
                                                 const reqStatus = myRequests[course.id];
                                                 return (
-                                                    <div key={course.id} className="bg-white rounded-lg shadow overflow-hidden flex flex-col border-t-4 border-blue-500">
+                                                    <div key={course.id} className="bg-white rounded-lg shadow overflow-hidden flex flex-col border-t-4 border-blue-500 cursor-pointer hover:shadow-lg transition" onClick={() => setPreviewCourseModal(course)}>
                                                         {course.imageUrl && <img src={course.imageUrl} className="w-full h-40 object-cover" />}
                                                         <div className="p-4 flex flex-col flex-1">
                                                             <div className="flex justify-between items-start mb-2">
                                                                 <h3 className="font-bold text-lg text-blue-900">{course.title}</h3>
                                                                 <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">{course.price}</span>
                                                             </div>
-                                                            <p className="text-gray-500 text-sm mb-4 flex-1">{course.desc}</p>
+                                                            <p className="text-gray-500 text-sm mb-4 flex-1 line-clamp-2">{course.desc}</p>
                                                             
-                                                            {isEnrolled ? (
-                                                                <button onClick={() => setSelectedCourse(course)} className="w-full bg-green-600 text-white py-2 rounded font-bold text-sm">دخول محتوى الدورة 🎓</button>
-                                                            ) : reqStatus === 'pending' ? (
-                                                                <button disabled className="w-full bg-yellow-100 text-yellow-800 py-2 rounded font-bold text-sm cursor-not-allowed">طلب الانضمام قيد المراجعة ⏳</button>
-                                                            ) : (
-                                                                <button onClick={() => handleRequestEnrollment(course)} className="w-full bg-blue-600 text-white py-2 rounded font-bold text-sm hover:bg-blue-700">طلب الانضمام للدورة</button>
-                                                            )}
+                                                            <span className="text-center bg-blue-50 text-blue-700 py-2 rounded font-bold text-sm block">اضغط لمعاينة التفاصيل والدورة 👁️</span>
                                                         </div>
                                                     </div>
                                                 );
@@ -709,6 +789,70 @@
 
                             {activeTab === "profile" && <StudentProfileView user={user} profile={profile} onUpdate={(newProf) => setProfile(newProf)} />}
                         </>
+                    )}
+
+                    {/* نافذة معاينة تفاصيل الدورة قبل الانضمام */}
+                    {previewCourseModal && (
+                        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 overflow-y-auto">
+                            <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-2xl w-full space-y-4 relative border-t-4 border-blue-600 max-h-[90vh] overflow-y-auto">
+                                <button onClick={() => setPreviewCourseModal(null)} className="absolute top-4 left-4 text-gray-400 hover:text-black font-bold text-2xl">×</button>
+                                
+                                <h2 className="text-2xl font-bold text-blue-900 border-b pb-2">{previewCourseModal.title}</h2>
+
+                                {/* الفيديو التجريبي في الأعلى */}
+                                {previewCourseModal.previewVideoUrl ? (
+                                    <div className="w-full h-64 bg-black rounded-lg overflow-hidden shadow">
+                                        <iframe src={previewCourseModal.previewVideoUrl} className="w-full h-full" allowFullScreen></iframe>
+                                    </div>
+                                ) : previewCourseModal.imageUrl ? (
+                                    <img src={previewCourseModal.imageUrl} className="w-full h-48 object-cover rounded-lg shadow" />
+                                ) : null}
+
+                                <div className="grid grid-cols-2 gap-4 bg-slate-50 p-3 rounded-lg text-sm">
+                                    <p><strong>المدرب:</strong> {previewCourseModal.instructor}</p>
+                                    <p><strong>مدة الدورة:</strong> {previewCourseModal.duration}</p>
+                                    <p><strong>الفئة المستهدفة:</strong> {previewCourseModal.targetAudience}</p>
+                                    <p><strong>السعر:</strong> <span className="text-green-600 font-bold">{previewCourseModal.price}</span></p>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-blue-900 mb-1">وصف الدورة التفصيلي:</h4>
+                                    <p className="text-gray-700 text-sm leading-relaxed bg-slate-50 p-4 rounded-lg">{previewCourseModal.desc || 'لا يوجد وصف مضاف.'}</p>
+                                </div>
+
+                                <div className="pt-2">
+                                    {enrolledCourseIds.includes(previewCourseModal.id) ? (
+                                        <button onClick={() => { setSelectedCourse(previewCourseModal); setPreviewCourseModal(null); }} className="w-full bg-green-600 text-white py-3 rounded-xl font-bold">دخول محتوى الدورة 🎓</button>
+                                    ) : myRequests[previewCourseModal.id] === 'pending' ? (
+                                        <button disabled className="w-full bg-yellow-100 text-yellow-800 py-3 rounded-xl font-bold cursor-not-allowed">طلب الانضمام قيد المراجعة ⏳</button>
+                                    ) : (
+                                        <button onClick={() => { handleRequestEnrollment(previewCourseModal); setPreviewCourseModal(null); }} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold shadow-lg">طلب الانضمام للدورة 🚀</button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* نافذة عرض تفاصيل الإعلان الكاملة */}
+                    {selectedPromoModal && (
+                        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
+                            <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-lg w-full space-y-4 relative border-t-4 border-teal-600 max-h-[90vh] overflow-y-auto">
+                                <button onClick={() => setSelectedPromoModal(null)} className="absolute top-4 left-4 text-gray-400 hover:text-black font-bold text-2xl">×</button>
+                                <h3 className="text-2xl font-bold text-blue-900 border-b pb-2">{selectedPromoModal.title}</h3>
+                                
+                                {selectedPromoModal.type === 'image' ? (
+                                    <img src={selectedPromoModal.url} className="w-full h-72 object-cover rounded-lg shadow" />
+                                ) : selectedPromoModal.type === 'video' ? (
+                                    <div className="w-full h-64 bg-black rounded-lg overflow-hidden shadow">
+                                        <iframe src={selectedPromoModal.url} className="w-full h-full" allowFullScreen></iframe>
+                                    </div>
+                                ) : (
+                                    <p className="text-gray-700 text-base bg-slate-50 p-4 rounded-lg leading-relaxed whitespace-pre-wrap">{selectedPromoModal.text}</p>
+                                )}
+
+                                <button onClick={() => setSelectedPromoModal(null)} className="w-full bg-blue-600 text-white py-2 rounded-xl font-bold">إغلاق</button>
+                            </div>
+                        </div>
                     )}
 
                     <div className="fixed bottom-4 left-4 z-50">
