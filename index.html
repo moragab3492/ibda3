@@ -154,7 +154,7 @@
             const [students, setStudents] = useState([]);
             const [promos, setPromos] = useState([]);
             const [selectedCourseForLectures, setSelectedCourseForLectures] = useState(null);
-            const [viewingStudentModal, setViewingStudentModal] = useState(null); // نافذة عرض ملف الطالب المقدم للطلب
+            const [viewingStudentModal, setViewingStudentModal] = useState(null);
             
             // نماذج إضافة دورة
             const [title, setTitle] = useState("");
@@ -165,10 +165,11 @@
             const [desc, setDesc] = useState("");
             const [imageUrl, setImageUrl] = useState("");
 
-            // نموذج إضافة إعلان تسويقي
+            // نموذج إضافة إعلان / عرض تسويقي
             const [promoTitle, setPromoTitle] = useState("");
-            const [promoType, setPromoType] = useState("image");
+            const [promoType, setPromoType] = useState("image"); // image, video, text
             const [promoUrl, setPromoUrl] = useState("");
+            const [promoText, setPromoText] = useState("");
 
             useEffect(() => {
                 const q = query(collection(window.db, "courses"), orderBy("createdAt", "desc"));
@@ -220,10 +221,11 @@
                 await addDoc(collection(window.db, "promos"), {
                     title: promoTitle,
                     type: promoType,
-                    url: promoUrl,
+                    url: promoType !== 'text' ? promoUrl : '',
+                    text: promoType === 'text' ? promoText : '',
                     createdAt: new Date().toISOString()
                 });
-                setPromoTitle(""); setPromoUrl("");
+                setPromoTitle(""); setPromoUrl(""); setPromoText("");
             };
 
             const handleDeletePromo = async (id) => {
@@ -260,7 +262,7 @@
                         </div>
                         <div className="flex flex-wrap gap-2">
                             <button onClick={() => { setActiveSubTab("courses"); setSelectedCourseForLectures(null); }} className={`px-4 py-2 rounded font-bold text-sm ${activeSubTab === 'courses' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>إدارة الدورات</button>
-                            <button onClick={() => setActiveSubTab("promos")} className={`px-4 py-2 rounded font-bold text-sm ${activeSubTab === 'promos' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>الإعلانات والفيديوهات 📢</button>
+                            <button onClick={() => setActiveSubTab("promos")} className={`px-4 py-2 rounded font-bold text-sm ${activeSubTab === 'promos' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>العروض والأسئلة التسويقية 📢</button>
                             <button onClick={() => setActiveSubTab("requests")} className={`px-4 py-2 rounded font-bold text-sm ${activeSubTab === 'requests' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>طلبات الانضمام ({requests.filter(r => r.status === 'pending').length})</button>
                             <button onClick={() => setActiveSubTab("supportChats")} className={`px-4 py-2 rounded font-bold text-sm ${activeSubTab === 'supportChats' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>محادثات الطلاب 💬</button>
                             <button onClick={() => signOut(window.auth)} className="bg-red-50 text-red-600 px-4 py-2 rounded font-bold text-sm hover:bg-red-100">خروج</button>
@@ -272,27 +274,36 @@
                     ) : activeSubTab === 'promos' ? (
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                             <div className="bg-white p-6 rounded-lg shadow border-t-4 border-blue-600 h-fit">
-                                <h3 className="font-bold mb-3">إضافة إعلان أو فيديو تسويقي</h3>
+                                <h3 className="font-bold mb-3">إضافة عرض أو إعلان تسويقي</h3>
                                 <form onSubmit={handleAddPromo} className="space-y-3">
-                                    <input type="text" placeholder="عنوان الإعلان أو الفيديو *" required value={promoTitle} onChange={e => setPromoTitle(e.target.value)} className="w-full px-3 py-2 border rounded outline-none text-sm" />
+                                    <input type="text" placeholder="عنوان الإعلان / العرض *" required value={promoTitle} onChange={e => setPromoTitle(e.target.value)} className="w-full px-3 py-2 border rounded outline-none text-sm" />
                                     <div>
                                         <label className="block text-xs font-bold mb-1">نوع المحتوى</label>
                                         <select value={promoType} onChange={e => setPromoType(e.target.value)} className="w-full px-3 py-2 border rounded outline-none text-sm">
                                             <option value="image">صورة إعلان 🖼️</option>
                                             <option value="video">فيديو تسويقي 📺</option>
+                                            <option value="text">إعلان / عرض نصي 📝</option>
                                         </select>
                                     </div>
-                                    <input type="url" placeholder={promoType === 'image' ? 'رابط الصورة' : 'رابط الفيديو (يوتيوب)'} required value={promoUrl} onChange={e => setPromoUrl(e.target.value)} className="w-full px-3 py-2 border rounded outline-none text-sm" dir="ltr" />
+                                    {promoType === 'text' ? (
+                                        <textarea placeholder="اكتب نص الإعلان أو العرض التفصيلي هنا..." required value={promoText} onChange={e => setPromoText(e.target.value)} className="w-full px-3 py-2 border rounded outline-none text-sm h-24"></textarea>
+                                    ) : (
+                                        <input type="url" placeholder={promoType === 'image' ? 'رابط الصورة' : 'رابط الفيديو (يوتيوب)'} required value={promoUrl} onChange={e => setPromoUrl(e.target.value)} className="w-full px-3 py-2 border rounded outline-none text-sm" dir="ltr" />
+                                    )}
                                     <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded font-bold text-sm">نشر في الصفحة الرئيسية</button>
                                 </form>
                             </div>
                             <div className="lg:col-span-2 space-y-4">
-                                <h3 className="text-xl font-bold mb-2">المحتوى التسويقي الحالي ({promos.length})</h3>
+                                <h3 className="text-xl font-bold mb-2">العروض والإعلانات الحالية ({promos.length})</h3>
                                 {promos.map(p => (
-                                    <div key={p.id} className="bg-white p-4 rounded-lg shadow flex justify-between items-center border-r-4 border-blue-500">
+                                    <div key={p.id} className="bg-white p-4 rounded-lg shadow flex justify-between items-start border-r-4 border-blue-500">
                                         <div>
-                                            <h4 className="font-bold text-blue-900">{p.title} ({p.type === 'image' ? '🖼️ صورة إعلان' : '📺 فيديو تسويقي'})</h4>
-                                            <a href={p.url} target="_blank" className="text-xs text-blue-500 underline truncate block max-w-md">{p.url}</a>
+                                            <h4 className="font-bold text-blue-900">{p.title} ({p.type === 'image' ? '🖼️ صورة' : p.type === 'video' ? '📺 فيديو' : '📝 نص'})</h4>
+                                            {p.type === 'text' ? (
+                                                <p className="text-gray-600 text-sm mt-1 bg-slate-50 p-2 rounded max-w-md">{p.text}</p>
+                                            ) : (
+                                                <a href={p.url} target="_blank" className="text-xs text-blue-500 underline truncate block max-w-md">{p.url}</a>
+                                            )}
                                         </div>
                                         <button onClick={() => handleDeletePromo(p.id)} className="bg-red-50 text-red-600 px-3 py-1 rounded font-bold text-sm">حذف</button>
                                     </div>
@@ -367,7 +378,6 @@
                         </div>
                     )}
 
-                    {/* نافذة عرض ملف الطالب */}
                     {viewingStudentModal && (
                         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
                             <div className="bg-white p-6 rounded-xl shadow-2xl max-w-md w-full space-y-4 relative border-t-4 border-blue-600">
@@ -506,6 +516,7 @@
             );
         }
 
+        // --- لوحة الطالب ---
         function StudentDashboard({ user }) {
             const [activeTab, setActiveTab] = useState("explore");
             const [profile, setProfile] = useState(null);
@@ -606,10 +617,12 @@
                                                         <h3 className="font-bold text-lg mb-2">{p.title}</h3>
                                                         {p.type === 'image' ? (
                                                             <img src={p.url} alt={p.title} className="w-full h-48 object-cover rounded-lg shadow" />
-                                                        ) : (
+                                                        ) : p.type === 'video' ? (
                                                             <div className="w-full h-48 bg-black rounded-lg overflow-hidden">
                                                                 <iframe src={p.url} className="w-full h-full" allowFullScreen></iframe>
                                                             </div>
+                                                        ) : (
+                                                            <p className="text-slate-100 text-sm bg-black/20 p-3 rounded-lg leading-relaxed">{p.text}</p>
                                                         )}
                                                     </div>
                                                 ))}
