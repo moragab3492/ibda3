@@ -171,7 +171,6 @@
             const [editingCourse, setEditingCourse] = useState(null);
             const [editingPromo, setEditingPromo] = useState(null);
             
-            // نماذج الدورة
             const [title, setTitle] = useState("");
             const [duration, setDuration] = useState("");
             const [price, setPrice] = useState("");
@@ -181,13 +180,11 @@
             const [previewVideoUrl, setPreviewVideoUrl] = useState("");
             const [imageUrl, setImageUrl] = useState("");
 
-            // نموذج الإعلان
             const [promoTitle, setPromoTitle] = useState("");
             const [promoType, setPromoType] = useState("image");
             const [promoUrl, setPromoUrl] = useState("");
             const [promoText, setPromoText] = useState("");
 
-            // نموذج مواقع التواصل
             const [socialTitle, setSocialTitle] = useState("");
             const [socialUrl, setSocialUrl] = useState("");
             const [socialIconUrl, setSocialIconUrl] = useState("");
@@ -264,7 +261,7 @@
                             <button onClick={() => { setActiveSubTab("courses"); setSelectedCourseForLectures(null); }} className={`px-4 py-2 rounded font-bold text-sm ${activeSubTab === 'courses' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>الدورات</button>
                             <button onClick={() => setActiveSubTab("promos")} className={`px-4 py-2 rounded font-bold text-sm ${activeSubTab === 'promos' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>الإعلانات 📢</button>
                             <button onClick={() => setActiveSubTab("social")} className={`px-4 py-2 rounded font-bold text-sm ${activeSubTab === 'social' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>مواقع التواصل 🌐</button>
-                            <button onClick={() => setActiveSubTab("requests")} className={`px-4 py-2 rounded font-bold text-sm ${activeSubTab === 'requests' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>الطلبات والمبيعات ({requests.filter(r => r.status === 'pending').length})</button>
+                            <button onClick={() => setActiveSubTab("requests")} className={`px-4 py-2 rounded font-bold text-sm ${activeSubTab === 'requests' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>طلبات الانضمام ({requests.filter(r => r.status === 'pending').length})</button>
                             <button onClick={() => setActiveSubTab("supportChats")} className={`px-4 py-2 rounded font-bold text-sm ${activeSubTab === 'supportChats' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>محادثات الطلاب 💬</button>
                             <button onClick={() => signOut(window.auth)} className="bg-red-50 text-red-600 px-4 py-2 rounded font-bold text-sm hover:bg-red-100">خروج</button>
                         </div>
@@ -351,7 +348,7 @@
                         </div>
                     ) : activeSubTab === 'requests' ? (
                         <div className="bg-white p-6 rounded-lg shadow">
-                            <h2 className="text-xl font-bold mb-4">الطلبات وعمليات الدفع (المبيعات)</h2>
+                            <h2 className="text-xl font-bold mb-4">طلبات انضمام الطلاب للدورات</h2>
                             <div className="space-y-4">
                                 {requests.length === 0 && <p className="text-gray-500">لا توجد طلبات انضمام حالياً.</p>}
                                 {requests.map(req => (
@@ -359,13 +356,12 @@
                                         <div>
                                             <p className="font-bold text-blue-900">الطالب: <button onClick={() => handleOpenStudentProfile(req.studentId)} className="text-blue-600 underline hover:text-blue-800 font-extrabold">{req.studentName}</button></p>
                                             <p className="text-sm text-gray-600">الدورة: <span className="font-bold">{req.courseTitle}</span></p>
-                                            <p className="text-xs mt-1">طريقة الدفع: <span className="font-bold text-blue-600">{req.paymentMethod === 'card' ? '💳 بطاقة بنكية' : req.paymentMethod === 'applepay' ? '🍎 Apple Pay' : req.paymentMethod === 'tamara' ? '🛍️ تمارا' : '🏦 تحويل بنكي'}</span></p>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             {req.status === 'approved' ? (
                                                 <span className="bg-green-100 text-green-700 px-3 py-1 rounded font-bold text-sm">مكتمل ومفعل ✅</span>
                                             ) : (
-                                                <button onClick={() => handleApproveRequest(req.id, req.studentId, req.courseId)} className="bg-blue-600 text-white px-4 py-2 rounded font-bold text-sm">تأكيد الدفع والتفعيل</button>
+                                                <button onClick={() => handleApproveRequest(req.id, req.studentId, req.courseId)} className="bg-blue-600 text-white px-4 py-2 rounded font-bold text-sm">موافقة وتفعيل</button>
                                             )}
                                         </div>
                                     </div>
@@ -574,7 +570,6 @@
             const [selectedCourse, setSelectedCourse] = useState(null);
             const [previewCourseModal, setPreviewCourseModal] = useState(null);
             const [selectedPromoModal, setSelectedPromoModal] = useState(null);
-            const [paymentModalData, setPaymentModalData] = useState(null); // نافذة الدفع
             
             const [showSupportChat, setShowSupportChat] = useState(false);
             const [hasNewAdminMessage, setHasNewAdminMessage] = useState(false);
@@ -607,6 +602,11 @@
             }, [user.uid, showSupportChat]);
 
             if (profile && !profile.profileComplete) return <CompleteProfile user={user} onComplete={(data) => setProfile({ ...profile, ...data, profileComplete: true })} />;
+
+            const handleRequestEnrollment = async (course) => {
+                await addDoc(collection(window.db, "enrollmentRequests"), { studentId: user.uid, studentName: profile?.fullName || user.email, courseId: course.id, courseTitle: course.title, status: "pending", createdAt: new Date().toISOString() });
+                alert("تم إرسال طلب الانضمام بنجاح! سيتم مراجعته من قِبل الإدارة وتفعيل اشتراكك قريباً.");
+            };
 
             const enrolledCoursesList = courses.filter(c => enrolledCourseIds.includes(c.id));
 
@@ -693,7 +693,8 @@
                         )}
                     </div>
 
-                    {socialLinks.length > 0 && !selectedCourse && !previewCourseModal && !selectedPromoModal && !paymentModalData && (
+                    {/* تذييل روابط التواصل الاجتماعي */}
+                    {socialLinks.length > 0 && !selectedCourse && !previewCourseModal && !selectedPromoModal && (
                         <div className="mt-16 pt-8 border-t border-gray-200 text-center pb-6">
                             <h3 className="text-gray-500 text-sm font-bold mb-4">تواصل وتابع منصة إبداع التعليمية عبر</h3>
                             <div className="flex justify-center gap-4 flex-wrap">
@@ -706,8 +707,8 @@
                         </div>
                     )}
 
-                    {/* نافذة معاينة الدورة */}
-                    {previewCourseModal && !paymentModalData && (
+                    {/* نافذة معاينة تفاصيل الدورة قبل الانضمام */}
+                    {previewCourseModal && (
                         <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 overflow-y-auto">
                             <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-2xl w-full space-y-4 relative border-t-4 border-blue-600 max-h-[90vh] overflow-y-auto">
                                 <button onClick={() => setPreviewCourseModal(null)} className="absolute top-4 left-4 text-gray-400 hover:text-black font-bold text-2xl">×</button>
@@ -727,37 +728,16 @@
                                     {enrolledCourseIds.includes(previewCourseModal.id) ? (
                                         <button onClick={() => { setSelectedCourse(previewCourseModal); setPreviewCourseModal(null); }} className="w-full bg-green-600 text-white py-3 rounded-xl font-bold">دخول محتوى الدورة 🎓</button>
                                     ) : myRequests[previewCourseModal.id] === 'pending' ? (
-                                        <button disabled className="w-full bg-yellow-100 text-yellow-800 py-3 rounded-xl font-bold cursor-not-allowed">جاري معالجة الدفع / بانتظار التفعيل ⏳</button>
+                                        <button disabled className="w-full bg-yellow-100 text-yellow-800 py-3 rounded-xl font-bold cursor-not-allowed">طلب الانضمام قيد المراجعة ⏳</button>
                                     ) : (
-                                        <button onClick={() => { setPaymentModalData(previewCourseModal); setPreviewCourseModal(null); }} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold shadow-lg text-lg flex items-center justify-center gap-2">شراء الدورة وبدء التعلم 🛒</button>
+                                        <button onClick={() => { handleRequestEnrollment(previewCourseModal); setPreviewCourseModal(null); }} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold shadow-lg text-lg flex items-center justify-center gap-2">طلب الانضمام للدورة 🚀</button>
                                     )}
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {/* نافذة بوابات الدفع (محاكاة) */}
-                    {paymentModalData && (
-                        <PaymentSimulationModal 
-                            course={paymentModalData} 
-                            user={user} 
-                            profile={profile}
-                            onClose={() => setPaymentModalData(null)}
-                            onSuccess={() => {
-                                setPaymentModalData(null);
-                                alert("تمت عملية الدفع بنجاح! 🎉 الدورة الآن متاحة في قسم 'دوراتي'.");
-                                // التبديل لقسم دوراتي وفتح الدورة
-                                setActiveTab("myCourses");
-                                setSelectedCourse(paymentModalData);
-                            }}
-                            onPending={() => {
-                                setPaymentModalData(null);
-                                alert("تم تسجيل طلبك بانتظار التحويل البنكي ومراجعة الإدارة.");
-                            }}
-                        />
-                    )}
-
-                    {/* نافذة عرض الإعلان */}
+                    {/* نافذة عرض تفاصيل الإعلان الكاملة */}
                     {selectedPromoModal && (
                         <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
                             <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-lg w-full space-y-4 relative border-t-4 border-teal-600 max-h-[90vh] overflow-y-auto">
@@ -769,6 +749,7 @@
                         </div>
                     )}
 
+                    {/* فقاعة محادثة الدعم الفني المعلقة */}
                     <div className="fixed bottom-6 left-6 z-50">
                         {showSupportChat ? (
                             <div className="bg-white rounded-lg shadow-2xl border border-blue-200 w-80 flex flex-col h-96">
@@ -780,6 +761,7 @@
                             </div>
                         ) : (
                             <button onClick={() => { setShowSupportChat(true); setHasNewAdminMessage(false); }} className="relative bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-2xl flex items-center justify-center transition transform hover:scale-105">
+                                {/* الإشعار المرئي المضيء (نقطة حمراء) إذا كان هناك رسالة جديدة ولم تكن المحادثة مفتوحة */}
                                 {hasNewAdminMessage && (
                                     <span className="absolute -top-1 -right-1 flex h-5 w-5">
                                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
@@ -789,90 +771,6 @@
                                 <span className="font-bold flex items-center gap-2">💬 الدعم الفني</span>
                             </button>
                         )}
-                    </div>
-                </div>
-            );
-        }
-
-        // --- محاكاة بوابة الدفع ---
-        function PaymentSimulationModal({ course, user, profile, onClose, onSuccess, onPending }) {
-            const [method, setMethod] = useState("card"); // card, applepay, tamara, bank
-            const [processing, setProcessing] = useState(false);
-
-            const handlePay = async (e) => {
-                e.preventDefault();
-                setProcessing(true);
-
-                // محاكاة الانتظار للاتصال بالبنك 2 ثانية
-                setTimeout(async () => {
-                    if (method === 'bank') {
-                        // طلب معلق يحتاج موافقة الإدارة
-                        await addDoc(collection(window.db, "enrollmentRequests"), { studentId: user.uid, studentName: profile?.fullName || user.email, courseId: course.id, courseTitle: course.title, paymentMethod: method, status: "pending", createdAt: new Date().toISOString() });
-                        onPending();
-                    } else {
-                        // تفعيل فوري وبوليصة دفع ناجحة
-                        await addDoc(collection(window.db, "enrollmentRequests"), { studentId: user.uid, studentName: profile?.fullName || user.email, courseId: course.id, courseTitle: course.title, paymentMethod: method, status: "approved", createdAt: new Date().toISOString() });
-                        await setDoc(doc(window.db, "users", user.uid, "enrolledCourses", course.id), { enrolledAt: new Date().toISOString() });
-                        onSuccess();
-                    }
-                }, 2000);
-            };
-
-            return (
-                <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-[60]">
-                    <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-md w-full relative">
-                        <button onClick={onClose} className="absolute top-4 left-4 text-gray-400 hover:text-black font-bold text-2xl">×</button>
-                        
-                        <div className="text-center mb-6">
-                            <h2 className="text-2xl font-bold text-blue-900 mb-1">إتمام الدفع</h2>
-                            <p className="text-gray-500 text-sm">دورة: {course.title}</p>
-                            <div className="text-3xl font-extrabold text-green-600 mt-2">{course.price}</div>
-                        </div>
-
-                        <form onSubmit={handlePay} className="space-y-4">
-                            <div className="space-y-2">
-                                <label className="block text-sm font-bold mb-2">اختر طريقة الدفع:</label>
-                                
-                                <label className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition ${method === 'card' ? 'border-blue-600 bg-blue-50' : 'hover:bg-slate-50'}`}>
-                                    <input type="radio" name="payment" value="card" checked={method === 'card'} onChange={() => setMethod('card')} className="w-4 h-4 text-blue-600" />
-                                    <span className="font-bold text-gray-800">💳 البطاقة الائتمانية / مدى</span>
-                                </label>
-                                
-                                <label className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition ${method === 'applepay' ? 'border-black bg-gray-100' : 'hover:bg-slate-50'}`}>
-                                    <input type="radio" name="payment" value="applepay" checked={method === 'applepay'} onChange={() => setMethod('applepay')} className="w-4 h-4 text-black" />
-                                    <span className="font-bold text-black flex items-center gap-1">🍎 <span className="font-sans">Apple Pay</span></span>
-                                </label>
-
-                                <label className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition ${method === 'tamara' ? 'border-pink-500 bg-pink-50' : 'hover:bg-slate-50'}`}>
-                                    <input type="radio" name="payment" value="tamara" checked={method === 'tamara'} onChange={() => setMethod('tamara')} className="w-4 h-4 text-pink-500" />
-                                    <span className="font-bold text-pink-600">🛍️ الدفع بالتقسيط مع تمارا</span>
-                                </label>
-
-                                <label className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition ${method === 'bank' ? 'border-gray-500 bg-gray-100' : 'hover:bg-slate-50'}`}>
-                                    <input type="radio" name="payment" value="bank" checked={method === 'bank'} onChange={() => setMethod('bank')} className="w-4 h-4 text-gray-500" />
-                                    <span className="font-bold text-gray-600">🏦 تحويل بنكي (يتطلب مراجعة)</span>
-                                </label>
-                            </div>
-
-                            {/* واجهة إدخال للبطاقة فقط للواقعية */}
-                            {method === 'card' && (
-                                <div className="bg-slate-50 p-4 rounded-lg border space-y-3 mt-4">
-                                    <input type="text" placeholder="رقم البطاقة (0000 0000 0000 0000)" required className="w-full px-3 py-2 border rounded outline-none text-sm text-left" dir="ltr" />
-                                    <div className="flex gap-2">
-                                        <input type="text" placeholder="MM/YY" required className="w-1/2 px-3 py-2 border rounded outline-none text-sm text-center" dir="ltr" />
-                                        <input type="text" placeholder="CVC" required className="w-1/2 px-3 py-2 border rounded outline-none text-sm text-center" dir="ltr" />
-                                    </div>
-                                    <input type="text" placeholder="اسم حامل البطاقة" required className="w-full px-3 py-2 border rounded outline-none text-sm" />
-                                </div>
-                            )}
-
-                            {method === 'applepay' && <div className="p-4 bg-black text-white text-center rounded-lg mt-4 font-bold">يرجى تأكيد الدفع عبر Apple Pay الخاص بجهازك...</div>}
-                            {method === 'tamara' && <div className="p-4 bg-pink-100 text-pink-800 text-center rounded-lg mt-4 font-bold text-sm">سيتم تقسيم المبلغ لـ 3 دفعات ميسرة، ادفع دفعة اليوم والباقي لاحقاً.</div>}
-
-                            <button type="submit" disabled={processing} className={`w-full py-3 rounded-xl font-bold text-lg text-white shadow-lg mt-6 ${method === 'applepay' ? 'bg-black hover:bg-gray-800' : method === 'tamara' ? 'bg-pink-500 hover:bg-pink-600' : method === 'bank' ? 'bg-gray-600 hover:bg-gray-700' : 'bg-blue-600 hover:bg-blue-700'}`}>
-                                {processing ? 'جاري معالجة الدفع ⏳...' : method === 'bank' ? 'تأكيد الحوالة البنكية' : `ادفع الآن (${course.price})`}
-                            </button>
-                        </form>
                     </div>
                 </div>
             );
