@@ -43,6 +43,36 @@
             doc, setDoc, getDoc, updateDoc, collection, addDoc, deleteDoc, onSnapshot, query, orderBy, limit 
         } = window.firebaseAPI;
 
+        // --- دالة ذكية لمعالجة روابط اليوتيوب وتصحيحها تلقائياً ---
+        const getEmbedUrl = (url) => {
+            if (!url) return "";
+            try {
+                if (url.includes("youtube.com/watch")) {
+                    const urlParams = new URL(url).searchParams;
+                    const v = urlParams.get("v");
+                    return v ? `https://www.youtube.com/embed/${v}` : url;
+                }
+                if (url.includes("youtu.be/")) {
+                    const v = url.split("youtu.be/")[1]?.split("?")[0];
+                    return v ? `https://www.youtube.com/embed/${v}` : url;
+                }
+            } catch (e) {
+                return url; // في حال كان الرابط غير صالح، يتم إرجاعه كما هو
+            }
+            return url; // إعادة الرابط كما هو إذا كان من منصة أخرى غير يوتيوب
+        };
+
+        const handleImageUpload = (e, callback) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    callback(reader.result);
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+
         function App() {
             const [user, setUser] = useState(null);
             const [role, setRole] = useState(null);
@@ -76,17 +106,6 @@
             if (role === "super_admin" || role === "admin") return <AdminDashboard user={user} role={role} />;
             return <StudentDashboard user={user} />;
         }
-
-        const handleImageUpload = (e, callback) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    callback(reader.result);
-                };
-                reader.readAsDataURL(file);
-            }
-        };
 
         // --- تسجيل الدخول ---
         function Login() {
@@ -171,6 +190,7 @@
             const [editingCourse, setEditingCourse] = useState(null);
             const [editingPromo, setEditingPromo] = useState(null);
             
+            // نماذج الدورة
             const [title, setTitle] = useState("");
             const [duration, setDuration] = useState("");
             const [price, setPrice] = useState("");
@@ -180,11 +200,13 @@
             const [previewVideoUrl, setPreviewVideoUrl] = useState("");
             const [imageUrl, setImageUrl] = useState("");
 
+            // نموذج الإعلان
             const [promoTitle, setPromoTitle] = useState("");
             const [promoType, setPromoType] = useState("image");
             const [promoUrl, setPromoUrl] = useState("");
             const [promoText, setPromoText] = useState("");
 
+            // نموذج مواقع التواصل
             const [socialTitle, setSocialTitle] = useState("");
             const [socialUrl, setSocialUrl] = useState("");
             const [socialIconUrl, setSocialIconUrl] = useState("");
@@ -355,9 +377,10 @@
                                     <div key={req.id} className="p-4 border rounded shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                                         <div>
                                             <p className="font-bold text-blue-900">الطالب: <button onClick={() => handleOpenStudentProfile(req.studentId)} className="text-blue-600 underline hover:text-blue-800 font-extrabold">{req.studentName}</button></p>
-                                            <p className="text-sm text-gray-600">الدورة: <span className="font-bold">{req.courseTitle}</span></p>
+                                            <p className="text-sm text-gray-600">الدورة المطلوبة: <span className="font-bold">{req.courseTitle}</span></p>
                                         </div>
                                         <div className="flex items-center gap-2">
+                                            <button onClick={() => handleOpenStudentProfile(req.studentId)} className="bg-slate-100 text-blue-700 px-3 py-2 rounded font-bold text-xs hover:bg-slate-200">ملف الطالب 👤</button>
                                             {req.status === 'approved' ? (
                                                 <span className="bg-green-100 text-green-700 px-3 py-1 rounded font-bold text-sm">مكتمل ومفعل ✅</span>
                                             ) : (
@@ -642,7 +665,7 @@
                                                     {promos.map(p => (
                                                         <div key={p.id} onClick={() => setSelectedPromoModal(p)} className="bg-white/10 p-4 rounded-xl backdrop-blur border border-white/25 cursor-pointer hover:bg-white/20 transition">
                                                             <h3 className="font-bold text-lg mb-2">{p.title}</h3>
-                                                            {p.type === 'image' ? <img src={p.url} className="w-full h-48 object-cover rounded-lg shadow" /> : p.type === 'video' ? <div className="w-full h-48 bg-black rounded-lg overflow-hidden pointer-events-none"><iframe src={p.url} className="w-full h-full"></iframe></div> : <p className="text-slate-100 text-sm bg-black/20 p-3 rounded-lg line-clamp-3">{p.text}</p>}
+                                                            {p.type === 'image' ? <img src={p.url} className="w-full h-48 object-cover rounded-lg shadow" /> : p.type === 'video' ? <div className="w-full h-48 bg-black rounded-lg overflow-hidden pointer-events-none"><iframe src={getEmbedUrl(p.url)} className="w-full h-full" allowFullScreen></iframe></div> : <p className="text-slate-100 text-sm bg-black/20 p-3 rounded-lg line-clamp-3">{p.text}</p>}
                                                             <span className="inline-block mt-3 text-xs bg-white/20 text-white px-2.5 py-1 rounded-full font-bold">اضغط لعرض التفاصيل الكاملة 🔍</span>
                                                         </div>
                                                     ))}
@@ -714,7 +737,7 @@
                                 <button onClick={() => setPreviewCourseModal(null)} className="absolute top-4 left-4 text-gray-400 hover:text-black font-bold text-2xl">×</button>
                                 <h2 className="text-2xl font-bold text-blue-900 border-b pb-2">{previewCourseModal.title}</h2>
                                 {previewCourseModal.previewVideoUrl ? (
-                                    <div className="w-full h-64 bg-black rounded-lg overflow-hidden shadow"><iframe src={previewCourseModal.previewVideoUrl} className="w-full h-full" allowFullScreen></iframe></div>
+                                    <div className="w-full h-64 bg-black rounded-lg overflow-hidden shadow"><iframe src={getEmbedUrl(previewCourseModal.previewVideoUrl)} className="w-full h-full" allowFullScreen></iframe></div>
                                 ) : previewCourseModal.imageUrl ? <img src={previewCourseModal.imageUrl} className="w-full h-48 object-cover rounded-lg shadow" /> : null}
                                 <div className="grid grid-cols-2 gap-4 bg-slate-50 p-3 rounded-lg text-sm">
                                     <p><strong>المدرب:</strong> {previewCourseModal.instructor}</p><p><strong>مدة الدورة:</strong> {previewCourseModal.duration}</p>
@@ -743,7 +766,7 @@
                             <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-lg w-full space-y-4 relative border-t-4 border-teal-600 max-h-[90vh] overflow-y-auto">
                                 <button onClick={() => setSelectedPromoModal(null)} className="absolute top-4 left-4 text-gray-400 hover:text-black font-bold text-2xl">×</button>
                                 <h3 className="text-2xl font-bold text-blue-900 border-b pb-2">{selectedPromoModal.title}</h3>
-                                {selectedPromoModal.type === 'image' ? <img src={selectedPromoModal.url} className="w-full h-72 object-cover rounded-lg shadow" /> : selectedPromoModal.type === 'video' ? <div className="w-full h-64 bg-black rounded-lg overflow-hidden shadow"><iframe src={selectedPromoModal.url} className="w-full h-full" allowFullScreen></iframe></div> : <p className="text-gray-700 text-base bg-slate-50 p-4 rounded-lg leading-relaxed whitespace-pre-wrap">{selectedPromoModal.text}</p>}
+                                {selectedPromoModal.type === 'image' ? <img src={selectedPromoModal.url} className="w-full h-72 object-cover rounded-lg shadow" /> : selectedPromoModal.type === 'video' ? <div className="w-full h-64 bg-black rounded-lg overflow-hidden shadow"><iframe src={getEmbedUrl(selectedPromoModal.url)} className="w-full h-full" allowFullScreen></iframe></div> : <p className="text-gray-700 text-base bg-slate-50 p-4 rounded-lg leading-relaxed whitespace-pre-wrap">{selectedPromoModal.text}</p>}
                                 <button onClick={() => setSelectedPromoModal(null)} className="w-full bg-blue-600 text-white py-2 rounded-xl font-bold">إغلاق</button>
                             </div>
                         </div>
@@ -761,7 +784,6 @@
                             </div>
                         ) : (
                             <button onClick={() => { setShowSupportChat(true); setHasNewAdminMessage(false); }} className="relative bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-2xl flex items-center justify-center transition transform hover:scale-105">
-                                {/* الإشعار المرئي المضيء (نقطة حمراء) إذا كان هناك رسالة جديدة ولم تكن المحادثة مفتوحة */}
                                 {hasNewAdminMessage && (
                                     <span className="absolute -top-1 -right-1 flex h-5 w-5">
                                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
@@ -939,7 +961,7 @@
                                 <>
                                     <h3 className="text-xl font-bold text-blue-900">{activeLecture.title}</h3>
                                     <p className="text-gray-700 bg-slate-50 p-4 rounded">{activeLecture.content}</p>
-                                    {activeLecture.videoUrl && <div className="border p-2 rounded bg-black"><iframe src={activeLecture.videoUrl} className="w-full h-72" allowFullScreen></iframe></div>}
+                                    {activeLecture.videoUrl && <div className="border p-2 rounded bg-black"><iframe src={getEmbedUrl(activeLecture.videoUrl)} className="w-full h-72" allowFullScreen></iframe></div>}
                                     <div className="border-t pt-4 mt-6">
                                         <h4 className="font-bold mb-3">التعليقات التفاعلية 💬</h4>
                                         <div className="space-y-3 mb-4 max-h-60 overflow-y-auto">
