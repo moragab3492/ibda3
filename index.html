@@ -43,7 +43,6 @@
             doc, setDoc, getDoc, updateDoc, collection, addDoc, deleteDoc, onSnapshot, query, orderBy, limit 
         } = window.firebaseAPI;
 
-        // --- دالة ذكية لمعالجة روابط اليوتيوب وتصحيحها تلقائياً ---
         const getEmbedUrl = (url) => {
             if (!url) return "";
             try {
@@ -57,9 +56,9 @@
                     return v ? `https://www.youtube.com/embed/${v}` : url;
                 }
             } catch (e) {
-                return url; // في حال كان الرابط غير صالح، يتم إرجاعه كما هو
+                return url; 
             }
-            return url; // إعادة الرابط كما هو إذا كان من منصة أخرى غير يوتيوب
+            return url; 
         };
 
         const handleImageUpload = (e, callback) => {
@@ -107,7 +106,6 @@
             return <StudentDashboard user={user} />;
         }
 
-        // --- تسجيل الدخول ---
         function Login() {
             const [username, setUsername] = useState("");
             const [password, setPassword] = useState("");
@@ -176,7 +174,6 @@
             );
         }
 
-        // --- لوحة الإدارة ---
         function AdminDashboard({ user, role }) {
             const [activeSubTab, setActiveSubTab] = useState("courses");
             const [courses, setCourses] = useState([]);
@@ -190,7 +187,6 @@
             const [editingCourse, setEditingCourse] = useState(null);
             const [editingPromo, setEditingPromo] = useState(null);
             
-            // نماذج الدورة
             const [title, setTitle] = useState("");
             const [duration, setDuration] = useState("");
             const [price, setPrice] = useState("");
@@ -200,13 +196,11 @@
             const [previewVideoUrl, setPreviewVideoUrl] = useState("");
             const [imageUrl, setImageUrl] = useState("");
 
-            // نموذج الإعلان
             const [promoTitle, setPromoTitle] = useState("");
             const [promoType, setPromoType] = useState("image");
             const [promoUrl, setPromoUrl] = useState("");
             const [promoText, setPromoText] = useState("");
 
-            // نموذج مواقع التواصل
             const [socialTitle, setSocialTitle] = useState("");
             const [socialUrl, setSocialUrl] = useState("");
             const [socialIconUrl, setSocialIconUrl] = useState("");
@@ -594,6 +588,9 @@
             const [previewCourseModal, setPreviewCourseModal] = useState(null);
             const [selectedPromoModal, setSelectedPromoModal] = useState(null);
             
+            // حالة نافذة معلومات الدفع
+            const [paymentInfoModal, setPaymentInfoModal] = useState(null);
+            
             const [showSupportChat, setShowSupportChat] = useState(false);
             const [hasNewAdminMessage, setHasNewAdminMessage] = useState(false);
 
@@ -628,7 +625,7 @@
 
             const handleRequestEnrollment = async (course) => {
                 await addDoc(collection(window.db, "enrollmentRequests"), { studentId: user.uid, studentName: profile?.fullName || user.email, courseId: course.id, courseTitle: course.title, status: "pending", createdAt: new Date().toISOString() });
-                alert("تم إرسال طلب الانضمام بنجاح! سيتم مراجعته من قِبل الإدارة وتفعيل اشتراكك قريباً.");
+                setPaymentInfoModal(course); // إظهار نافذة تفاصيل الدفع بعد التسجيل
             };
 
             const enrolledCoursesList = courses.filter(c => enrolledCourseIds.includes(c.id));
@@ -665,7 +662,7 @@
                                                     {promos.map(p => (
                                                         <div key={p.id} onClick={() => setSelectedPromoModal(p)} className="bg-white/10 p-4 rounded-xl backdrop-blur border border-white/25 cursor-pointer hover:bg-white/20 transition">
                                                             <h3 className="font-bold text-lg mb-2">{p.title}</h3>
-                                                            {p.type === 'image' ? <img src={p.url} className="w-full h-48 object-cover rounded-lg shadow" /> : p.type === 'video' ? <div className="w-full h-48 bg-black rounded-lg overflow-hidden pointer-events-none"><iframe src={getEmbedUrl(p.url)} className="w-full h-full" allowFullScreen></iframe></div> : <p className="text-slate-100 text-sm bg-black/20 p-3 rounded-lg line-clamp-3">{p.text}</p>}
+                                                            {p.type === 'image' ? <img src={p.url} className="w-full h-48 object-cover rounded-lg shadow" /> : p.type === 'video' ? <div className="w-full h-48 bg-black rounded-lg overflow-hidden pointer-events-none"><iframe src={getEmbedUrl(p.url)} className="w-full h-full"></iframe></div> : <p className="text-slate-100 text-sm bg-black/20 p-3 rounded-lg line-clamp-3">{p.text}</p>}
                                                             <span className="inline-block mt-3 text-xs bg-white/20 text-white px-2.5 py-1 rounded-full font-bold">اضغط لعرض التفاصيل الكاملة 🔍</span>
                                                         </div>
                                                     ))}
@@ -716,8 +713,7 @@
                         )}
                     </div>
 
-                    {/* تذييل روابط التواصل الاجتماعي */}
-                    {socialLinks.length > 0 && !selectedCourse && !previewCourseModal && !selectedPromoModal && (
+                    {socialLinks.length > 0 && !selectedCourse && !previewCourseModal && !selectedPromoModal && !paymentInfoModal && (
                         <div className="mt-16 pt-8 border-t border-gray-200 text-center pb-6">
                             <h3 className="text-gray-500 text-sm font-bold mb-4">تواصل وتابع منصة إبداع التعليمية عبر</h3>
                             <div className="flex justify-center gap-4 flex-wrap">
@@ -731,7 +727,7 @@
                     )}
 
                     {/* نافذة معاينة تفاصيل الدورة قبل الانضمام */}
-                    {previewCourseModal && (
+                    {previewCourseModal && !paymentInfoModal && (
                         <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 overflow-y-auto">
                             <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-2xl w-full space-y-4 relative border-t-4 border-blue-600 max-h-[90vh] overflow-y-auto">
                                 <button onClick={() => setPreviewCourseModal(null)} className="absolute top-4 left-4 text-gray-400 hover:text-black font-bold text-2xl">×</button>
@@ -756,6 +752,30 @@
                                         <button onClick={() => { handleRequestEnrollment(previewCourseModal); setPreviewCourseModal(null); }} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold shadow-lg text-lg flex items-center justify-center gap-2">طلب الانضمام للدورة 🚀</button>
                                     )}
                                 </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* رسالة الدفع وتفاصيل الحساب البنكي (نافذة منبثقة) */}
+                    {paymentInfoModal && (
+                        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[70]">
+                            <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-md w-full relative border-t-4 border-green-600 text-center">
+                                <button onClick={() => setPaymentInfoModal(null)} className="absolute top-4 left-4 text-gray-400 hover:text-black font-bold text-2xl">×</button>
+                                <h2 className="text-2xl font-bold text-green-700 mb-4">تم تسجيل طلبك بنجاح! 🎉</h2>
+                                <div className="bg-slate-50 p-4 rounded-lg text-gray-700 space-y-3 text-sm leading-relaxed text-right">
+                                    <p>لفتح الدورة المسجلة، يتم تحويل مبلغ الدورة <span className="font-bold text-green-600">({paymentInfoModal.price})</span> للمنصة على رقم الحساب التالي:</p>
+                                    
+                                    <div className="bg-white border p-3 rounded text-center">
+                                        <p className="font-bold text-blue-900">مركز إبداع ومواهب للتدريب</p>
+                                        <p className="font-mono text-lg font-bold select-all mt-1" title="اضغط للنسخ">SA1080000216608016625329</p>
+                                    </div>
+                                    
+                                    <p>وإرسال الإيصال للمنصة عبر الواتساب على الرقم:</p>
+                                    <a href={`https://wa.me/966510785633?text=مرحباً، أرفق لكم إيصال سداد دورة: ${paymentInfoModal.title}`} target="_blank" className="block text-center text-lg font-bold text-green-600 hover:underline select-all" title="اضغط لفتح الواتساب">0510785633</a>
+                                    
+                                    <p className="font-bold text-blue-800 text-center mt-2">وسيتم فتح الدورة لكم آلياً.</p>
+                                </div>
+                                <button onClick={() => setPaymentInfoModal(null)} className="mt-4 w-full bg-green-600 text-white py-2 rounded-xl font-bold">حسناً، فهمت</button>
                             </div>
                         </div>
                     )}
